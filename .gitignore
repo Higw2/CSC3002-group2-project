@@ -1,0 +1,62 @@
+# --------------------------
+# 编译产物（CMake 生成的目录和文件）
+# --------------------------
+build/                  # 编译目录（通常存放 CMake 生成的项目和二进制文件）
+out/                    # 部分 IDE 可能使用的输出目录
+bin/                    # 可能的二进制文件目录
+lib/                    # 可能的库文件目录
+
+# CMake 临时文件
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+*.ninja
+*.ninja.log
+
+# --------------------------
+# 可执行文件和动态链接库
+# --------------------------
+# Windows 可执行文件和 DLL
+*.exe
+*.exe.stackdump
+*.dll
+*.lib
+*.pdb
+
+# Linux/macOS 可执行文件（如果未来支持跨平台）
+*.out
+*.so
+*.dylib
+
+# --------------------------
+# 源代码无关的临时文件
+# --------------------------
+*.log                   # 日志文件
+*.swp                   # Vim 临时文件
+*.swo
+*~                      # 编辑器临时文件
+.DS_Store               # macOS 系统文件
+Thumbs.db               # Windows 缩略图缓存
+
+# --------------------------
+# IDE 配置文件（避免不同编辑器配置冲突）
+# --------------------------
+.idea/                  # IntelliJ/CLion 配置
+.vscode/                # VS Code 配置
+*.suo                   # Visual Studio 配置
+*.sln                   # Visual Studio 解决方案（CMake 会生成，无需提交）
+*.vcxproj               # Visual Studio 项目文件
+*.vcxproj.filters
+
+# --------------------------
+# 保留关键文件（无需手动添加，此部分仅说明不忽略的内容）
+# --------------------------
+# 以下文件/目录会被自动保留（因为未出现在上述忽略列表中）：
+# - src/（源代码目录）
+# - include/（头文件目录）
+# - assets/（资源目录，含音频、图片等）
+# - third-party/（第三方库，如 SDL2 相关）
+# - CMakeLists.txt（项目配置）
+# - README.md（说明文档，建议添加）
