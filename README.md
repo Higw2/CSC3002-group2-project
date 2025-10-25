@@ -19,4 +19,4 @@
 
 level1.tmj是地图文件
 
-
+因为我在basic这个瓦片集里不小心把碰撞检测写成了soild，所以tilemap.cpp里同时及检测了“soild”和“solid”，如果你们用ai要更改的话记得看一眼，ai有可能只检测了“solid”
