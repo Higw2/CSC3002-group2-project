@@ -6,7 +6,7 @@ Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
     // 加载玩家纹理
     texture = IMG_LoadTexture(renderer, "assets/sprites/player.png");
     if (!texture) {
-        std::cerr << "玩家纹理加载失败，使用默认红色矩形: " << IMG_GetError() << std::endl;
+        std::cerr << "The player texture failed to load. Using the default red rectangle instead.: " << IMG_GetError() << std::endl;
         // 创建默认红色纹理
         SDL_Surface* surface = SDL_CreateRGBSurface(0, 16, 24, 32, 0, 0, 0, 0);
         SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 255, 0, 0));
@@ -32,6 +32,10 @@ void Player::handleInput() {
 
     // 跳跃（仅在地面）
     if (keys[SDL_SCANCODE_SPACE] && onGround) {
+        velocity.y = jumpForce;
+        onGround = false;
+    }
+    if (keys[SDL_SCANCODE_UP] && onGround) {
         velocity.y = jumpForce;
         onGround = false;
     }
@@ -99,11 +103,15 @@ void Player::update(const TiledMap& map) {
             float worldY = (position.y + hitbox.y + hitbox.h) * renderScale;
             int tileY = (int)(worldY) / map.getTileHeight();
             position.y = (tileY * map.getTileHeight() / renderScale) - hitbox.y - hitbox.h;
-        } else if (collideTop && velocity.y < 0) {  // 上升时碰撞（天花板）
+        } 
+        else if (collideTop && velocity.y < 0) 
+        {  // 上升时碰撞（天花板）
             position.y -= velocity.y;
         }
         velocity.y = 0;
-    } else {
+    } 
+    else 
+    {
         onGround = false;
     }
 
@@ -112,20 +120,22 @@ void Player::update(const TiledMap& map) {
     float contentHeight = map.getContentPixelHeight();
     
     if (position.x < 0) position.x = 0;
-    if (position.x + 16 > contentWidth) {
+    if (position.x + 16 > contentWidth) 
+    {
         position.x = contentWidth - 16;
     }
     if (position.y < 0) position.y = 0;
-    if (position.y + 24 > contentHeight) {
+    if (position.y + 24 > contentHeight) 
+    {
         position.y = contentHeight - 24;
         velocity.y = 0; // 碰到底部边界时停止下落
         onGround = true;
     }
 
     // 调试输出
-    std::cout << "玩家更新 - 位置: (" << position.x << ", " << position.y 
-              << "), 速度: (" << velocity.x << ", " << velocity.y 
-              << "), 在地面: " << onGround << std::endl;
+    std::cout << "Player Update - Location: (" << position.x << ", " << position.y 
+              << "), speed: (" << velocity.x << ", " << velocity.y 
+              << "), on ground: " << onGround << std::endl;
 }
 
 void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderScale) {

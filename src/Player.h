@@ -15,7 +15,7 @@ public:
 
 private:
     SDL_Texture* texture = nullptr;
-    glm::vec2 position;    // 玩家左上角坐标
+    glm::vec2 position;    // 玩家坐标
     glm::vec2 velocity;    // 速度（像素/帧）
     SDL_Rect hitbox;       // 碰撞盒（相对位置）
     bool onGround = false; // 是否在地面上
@@ -23,5 +23,5 @@ private:
     // 移动参数
     const float speed = 3.0f;    // 水平速度
     const float jumpForce = -8.0f; // 跳跃初速度（负为上）
-    const float gravity = 0.3f;  // 重力加速度
+    const float gravity = 0.6f;  // 重力加速度
 };
