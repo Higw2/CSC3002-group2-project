@@ -21,14 +21,8 @@ Makefile
 # Windows 可执行文件和 DLL
 *.exe
 *.exe.stackdump
-*.dll
-*.lib
-*.pdb
 
-# Linux/macOS 可执行文件（如果未来支持跨平台）
-*.out
-*.so
-*.dylib
+
 
 # --------------------------
 # 源代码无关的临时文件
