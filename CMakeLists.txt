@@ -45,6 +45,8 @@ link_directories(
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 message("找到的.cpp文件: ${SOURCES}")  # 调试：确认源文件是否正确收集
 message(STATUS "SDL2 路径：${SDL2_DIR}")
+message(STATUS "SDL2_mixer 路径：${SDL2_MIXER_DIR}")
+message(STATUS "SDL2_image 路径：${SDL2_IMAGE_DIR}")
 message(STATUS "GLM 路径：${GLM_DIR}")
 message(STATUS "JSON 路径：${NLOHMANN_JSON_DIR}")
 
