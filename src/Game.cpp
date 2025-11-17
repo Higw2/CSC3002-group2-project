@@ -77,7 +77,7 @@ bool Game::init() {
     std::cout << "the size of the screen" << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
     std::cout << "=========================================================" << std::endl;
 
-    // 初始化相机 - 使用实际内容尺寸(要不要使用地图尺寸，用内容尺寸容易出问题，到时候改一下)！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+    // 初始化相机 - 使用实际内容尺寸
     int scaledContentWidth = map->getContentPixelWidth() * map->getRenderScale();
     int scaledContentHeight = map->getContentPixelHeight() * map->getRenderScale();
     camera = new Camera(SCREEN_WIDTH, SCREEN_HEIGHT, scaledContentWidth, scaledContentHeight);
@@ -100,6 +100,10 @@ bool Game::init() {
     std::cout << "Player's initial position: (" << startX << ", " << startY << ")" << std::endl;
     std::cout << "The initial position of the camera: (" << camera->x << ", " << camera->y << ")" << std::endl;
 
+    // 初始化时间变量 - 在所有初始化完成后设置
+    lastUpdateTime = SDL_GetTicks();
+    std::cout << "Time system initialized. LastUpdateTime: " << lastUpdateTime << std::endl;
+
     isRunning = true;
     return true;
 }
@@ -116,18 +120,21 @@ void Game::handleEvents()
     }
 }
 
-void Game::update() {
+void Game::update(float deltaTime) {
     player->handleInput();
-    player->update(*map);
+    player->update(*map, deltaTime); // 传入时间增量
     
     glm::vec2 playerPos = player->getPosition();
-    std::cout << "=== Camera tracking calculation ===" << std::endl;
-    std::cout << "Player's original position: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
-    std::cout << "Map zooming: " << map->getRenderScale() << std::endl;
+    
+    // 调试输出时间信息
+    static int updateCount = 0;
+    if (updateCount++ % 60 == 0) { // 每60帧输出一次
+        std::cout << "=== Update Info ===" << std::endl;
+        std::cout << "DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
+        std::cout << "Player Position: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
+    }
     
     camera->follow(playerPos, map->getRenderScale());
-    
-    std::cout << "==================" << std::endl;
 }
 
 void Game::render() {
@@ -147,10 +154,40 @@ void Game::run() {
         return;
     }
 
+    std::cout << "Starting time-based game loop..." << std::endl;
+
     while (isRunning) {
+        // 计算时间增量
+        Uint32 currentTime = SDL_GetTicks();
+        deltaTime = (currentTime - lastUpdateTime) / 1000.0f; // 转换为秒
+        lastUpdateTime = currentTime;
+
+        // 限制最大时间增量，避免卡顿导致的物理异常
+        if (deltaTime > MAX_DELTA_TIME) {
+            std::cout << "Frame took too long: " << deltaTime * 1000 << "ms, clamping to " 
+                      << MAX_DELTA_TIME * 1000 << "ms" << std::endl;
+            deltaTime = MAX_DELTA_TIME;
+        }
+
+        // 输出帧率信息（可选，调试用）
+        static Uint32 frameCount = 0;
+        static Uint32 lastFpsTime = 0;
+        frameCount++;
+        if (currentTime - lastFpsTime >= 1000) { // 每秒输出一次
+            float fps = frameCount / ((currentTime - lastFpsTime) / 1000.0f);
+            std::cout << "FPS: " << fps << ", DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
+            frameCount = 0;
+            lastFpsTime = currentTime;
+        }
+
         handleEvents();
-        update();
+        update(deltaTime);  // 传入时间增量
         render();
-        SDL_Delay(16);  // 约60帧/秒
+
+        // 帧率控制：目标60FPS（约16.67ms/帧）
+        Uint32 frameTime = SDL_GetTicks() - currentTime;
+        if (frameTime < 16) {
+            SDL_Delay(16 - frameTime);
+        }
     }
 }
