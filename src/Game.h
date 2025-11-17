@@ -21,11 +21,16 @@ private:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 350;
 
+    // 添加时间管理变量
+    Uint32 lastUpdateTime = 0;    // 上一帧的时间戳（毫秒）
+    float deltaTime = 0.016f;     // 时间增量（秒），初始化为16ms
+    const float MAX_DELTA_TIME = 0.05f; // 最大时间增量，避免卡顿时的物理异常
+
     TiledMap* map = nullptr;
     Player* player = nullptr;
     Camera* camera = nullptr;
 
     void handleEvents();
-    void update();
+    void update(float deltaTime);  // 修改：添加deltaTime参数
     void render();
 };
