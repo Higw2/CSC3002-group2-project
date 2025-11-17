@@ -26,41 +26,44 @@ void Player::handleInput() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     velocity.x = 0;  // 重置水平速度
 
-    // 左右移动
+    // 左右移动 - 速度值现在在update中与deltaTime结合
     if (keys[SDL_SCANCODE_LEFT])  velocity.x = -speed;
     if (keys[SDL_SCANCODE_RIGHT]) velocity.x = speed;
 
     // 跳跃（仅在地面）
-    if (keys[SDL_SCANCODE_SPACE] && onGround) {
+    if ((keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_UP]) && onGround) {
         velocity.y = jumpForce;
         onGround = false;
-    }
-    if (keys[SDL_SCANCODE_UP] && onGround) {
-        velocity.y = jumpForce;
-        onGround = false;
+        std::cout << "Jump! Velocity: " << velocity.y << " pixels/sec" << std::endl;
     }
 }
 
-void Player::update(const TiledMap& map) {
-    // 应用重力
-    velocity.y += gravity;
+// 修改：添加deltaTime参数
+void Player::update(const TiledMap& map, float deltaTime) {
+    // 应用重力（基于时间）
+    velocity.y += gravity * deltaTime;
 
-    float renderScale = map.getRenderScale();
+    // 调试输出物理信息
+    static int physicsLogCount = 0;
+    if (physicsLogCount++ % 30 == 0) {
+        std::cout << "Physics Update - DeltaTime: " << deltaTime 
+                  << ", Gravity applied: " << gravity * deltaTime
+                  << ", Velocity: (" << velocity.x << ", " << velocity.y << ")" << std::endl;
+    }
 
     // X方向移动与碰撞
-    position.x += velocity.x;
+    float oldX = position.x;
+    position.x += velocity.x * deltaTime;
     
-    // 测试四个角的碰撞（将玩家坐标转换为世界坐标）
-    bool collideX = false;
-    
-    // 测试碰撞盒的四个角（转换为世界坐标）
+    // 碰撞检测（使用修复后的版本 - 无缩放坐标）
     SDL_Point testPoints[4] = {
-        {(int)((position.x + hitbox.x) * renderScale), (int)((position.y + hitbox.y) * renderScale)},
-        {(int)((position.x + hitbox.x + hitbox.w - 1) * renderScale), (int)((position.y + hitbox.y) * renderScale)},
-        {(int)((position.x + hitbox.x) * renderScale), (int)((position.y + hitbox.y + hitbox.h - 1) * renderScale)},
-        {(int)((position.x + hitbox.x + hitbox.w - 1) * renderScale), (int)((position.y + hitbox.y + hitbox.h - 1) * renderScale)}
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
     };
     
+    bool collideX = false;
     for (int i = 0; i < 4; i++) {
         if (map.isColliding(testPoints[i].x, testPoints[i].y)) {
             collideX = true;
@@ -69,24 +72,25 @@ void Player::update(const TiledMap& map) {
     }
     
     if (collideX) {
-        position.x -= velocity.x;
+        position.x = oldX;  // 回退X位置
         velocity.x = 0;
     }
 
     // Y方向移动与碰撞
-    position.y += velocity.y;
+    float oldY = position.y;
+    position.y += velocity.y * deltaTime;
+    
+    // 重新计算测试点（Y方向移动后）
+    SDL_Point testPointsY[4] = {
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
+    };
     
     bool collideY = false;
     bool collideTop = false;
     bool collideBottom = false;
-    
-    // 重新计算测试点（Y方向移动后）
-    SDL_Point testPointsY[4] = {
-        {(int)((position.x + hitbox.x) * renderScale), (int)((position.y + hitbox.y) * renderScale)},
-        {(int)((position.x + hitbox.x + hitbox.w - 1) * renderScale), (int)((position.y + hitbox.y) * renderScale)},
-        {(int)((position.x + hitbox.x) * renderScale), (int)((position.y + hitbox.y + hitbox.h - 1) * renderScale)},
-        {(int)((position.x + hitbox.x + hitbox.w - 1) * renderScale), (int)((position.y + hitbox.y + hitbox.h - 1) * renderScale)}
-    };
     
     for (int i = 0; i < 4; i++) {
         if (map.isColliding(testPointsY[i].x, testPointsY[i].y)) {
@@ -99,43 +103,46 @@ void Player::update(const TiledMap& map) {
     if (collideY) {
         if (collideBottom && velocity.y > 0) {  // 下落时碰撞（地面）
             onGround = true;
-            // 对齐到瓦片顶部（考虑缩放）
-            float worldY = (position.y + hitbox.y + hitbox.h) * renderScale;
+            // 对齐到瓦片顶部
+            float worldY = position.y + hitbox.y + hitbox.h;
             int tileY = (int)(worldY) / map.getTileHeight();
-            position.y = (tileY * map.getTileHeight() / renderScale) - hitbox.y - hitbox.h;
+            position.y = (tileY * map.getTileHeight()) - hitbox.y - hitbox.h;
+            velocity.y = 0;
+            std::cout << "Landed on ground" << std::endl;
         } 
-        else if (collideTop && velocity.y < 0) 
-        {  // 上升时碰撞（天花板）
-            position.y -= velocity.y;
+        else if (collideTop && velocity.y < 0) {  // 上升时碰撞（天花板）
+            position.y = oldY;
+            velocity.y = 0;
+            std::cout << "Hit ceiling" << std::endl;
         }
-        velocity.y = 0;
     } 
     else 
     {
         onGround = false;
     }
 
-    // 使用实际内容尺寸限制玩家移动
+    // 边界检查
     float contentWidth = map.getContentPixelWidth();
     float contentHeight = map.getContentPixelHeight();
     
     if (position.x < 0) position.x = 0;
-    if (position.x + 16 > contentWidth) 
-    {
+    if (position.x + 16 > contentWidth) {
         position.x = contentWidth - 16;
     }
     if (position.y < 0) position.y = 0;
-    if (position.y + 24 > contentHeight) 
-    {
+    if (position.y + 24 > contentHeight) {
         position.y = contentHeight - 24;
-        velocity.y = 0; // 碰到底部边界时停止下落
+        velocity.y = 0;
         onGround = true;
     }
 
-    // 调试输出
-    std::cout << "Player Update - Location: (" << position.x << ", " << position.y 
-              << "), speed: (" << velocity.x << ", " << velocity.y 
-              << "), on ground: " << onGround << std::endl;
+    // 简化调试输出
+    static int outputCount = 0;
+    if (outputCount++ % 60 == 0) {
+        std::cout << "Player - Pos: (" << position.x << ", " << position.y 
+                  << ") Vel: (" << velocity.x << ", " << velocity.y 
+                  << ") OnGround: " << onGround << std::endl;
+    }
 }
 
 void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderScale) {
@@ -147,6 +154,9 @@ void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderSc
         (int)((position.y - view.y) * renderScale),
         (int)(16 * renderScale),
         (int)(24 * renderScale)
+    };
+    SDL_RenderCopy(renderer, texture, nullptr, &dest);
+}
     };
     SDL_RenderCopy(renderer, texture, nullptr, &dest);
 }
