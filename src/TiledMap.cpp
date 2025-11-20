@@ -99,7 +99,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                     int localId = tile["id"].get<int>();
                     int globalId = firstGid + localId;  // 计算全局GID
 
-                    // 4.1 处理碰撞属性（兼容 basic 的 "soild" 和 Cave1 的 "solid"）
+                    // 4.1 处理碰撞属性（目前这里只有Flat_Terrain一种碰撞！对应分工的同学可以看下实体文档，还有几种碰撞特性，写好了我在这边加上去）
                     if (tile.contains("properties") && tile["properties"].is_array()) {
                         for (const auto& prop : tile["properties"]) {
                             if (!prop.is_object() || !prop.contains("name") || !prop["name"].is_string() ||
@@ -108,7 +108,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                             }
                             std::string propName = prop["name"].get<std::string>();
                             bool propValue = prop["value"].get<bool>();
-                            if ((propName == "solid" || propName == "soild") && propValue) {
+                            if ((propName == "Flat_Terrain" ) && propValue) {
                                 solidTiles.insert(globalId);
                                 std::cout << "  - Tile " << globalId << " (local " << localId << ") marked as solid" << std::endl;
                             }
