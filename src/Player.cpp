@@ -157,6 +157,4 @@ void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderSc
     };
     SDL_RenderCopy(renderer, texture, nullptr, &dest);
 }
-    };
-    SDL_RenderCopy(renderer, texture, nullptr, &dest);
-}
+

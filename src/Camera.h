@@ -25,7 +25,7 @@ public:
 
         // 计算相机目标位置（玩家居中）
         float targetX = playerCenter.x - screenWidth / 2.0f;
-        float targetY = playerCenter.y - screenHeight / 2.0f;
+        float targetY =  playerCenter.y - screenHeight / 2.0f;
 
         std::cout << "the target position of the camera: (" << targetX << ", " << targetY << ")" << std::endl;
 
