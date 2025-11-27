@@ -5,6 +5,7 @@
 #include "TiledMap.h"
 #include "Player.h"
 #include "Camera.h"
+#include "StartMenu.h"  // 添加这行
 
 class Game {
 public:
@@ -13,6 +14,12 @@ public:
     bool init();
     void run();
     glm::vec2 getPlayerPosition() const { return player->getPosition(); }
+
+    enum GameState {
+        STATE_MENU,
+        STATE_PLAYING,
+        STATE_PAUSED
+    };
 
 private:
     SDL_Window* window = nullptr;
@@ -29,8 +36,13 @@ private:
     TiledMap* map = nullptr;
     Player* player = nullptr;
     Camera* camera = nullptr;
+    StartMenu* startMenu = nullptr;  // 添加开始菜单
+    GameState gameState = STATE_MENU; // 初始状态为菜单
 
     void handleEvents();
-    void update(float deltaTime);  // 修改：添加deltaTime参数
+    void update(float deltaTime);
     void render();
+    void runMenuState();      // 菜单状态逻辑
+    void runPlayingState();   // 游戏进行状态逻辑
+    void startNewGame();      // 开始新游戏
 };

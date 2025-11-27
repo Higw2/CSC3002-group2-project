@@ -7,6 +7,9 @@ Game::~Game() {
     delete map;
     delete player;
     delete camera;
+    if (startMenu) {
+        delete startMenu;
+    }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
@@ -55,15 +58,205 @@ bool Game::init() {
         return false;
     }
 
+    // 初始化开始菜单
+    startMenu = new StartMenu(renderer);
+    if (!startMenu->init()) {
+        std::cerr << "开始菜单初始化失败" << std::endl;
+        // 不直接返回false，允许游戏继续运行
+    }
+
+    // 初始状态为菜单
+    gameState = STATE_MENU;
+
+    // 初始化时间变量
+    lastUpdateTime = SDL_GetTicks();
+    std::cout << "Time system initialized. LastUpdateTime: " << lastUpdateTime << std::endl;
+
+    isRunning = true;
+    return true;
+}
+
+void Game::handleEvents() 
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) 
+    {
+        if (event.type == SDL_QUIT) 
+        {
+            isRunning = false;
+        }
+        else if (event.type == SDL_KEYDOWN) {
+            // 添加ESC键返回菜单的功能
+            if (event.key.keysym.sym == SDLK_ESCAPE && gameState == STATE_PLAYING) {
+                gameState = STATE_MENU;
+                std::cout << "返回开始菜单" << std::endl;
+            }
+        }
+    }
+}
+
+void Game::update(float deltaTime) {
+    if (gameState != STATE_PLAYING) {
+        return; // 只有游戏进行状态才更新游戏逻辑
+    }
+
+    player->handleInput();
+    player->update(*map, deltaTime); // 传入时间增量
+    
+    glm::vec2 playerPos = player->getPosition();
+    
+    // 调试输出时间信息
+    static int updateCount = 0;
+    if (updateCount++ % 60 == 0) { // 每60帧输出一次
+        std::cout << "=== Update Info ===" << std::endl;
+        std::cout << "DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
+        std::cout << "Player Position: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
+    }
+    
+    camera->follow(playerPos, map->getRenderScale());
+}
+
+void Game::render() {
+    SDL_RenderClear(renderer);  // 清除为深灰色
+
+    if (gameState == STATE_PLAYING) {
+        // 游戏进行状态：渲染游戏场景
+        map->renderBackground(renderer, *camera);  // 背景层（最底层）
+        map->renderTiles(renderer, *camera);       // 瓦片层
+        player->render(renderer, *camera, map->getRenderScale());  // 玩家（最上层）
+    }
+    // 菜单状态由菜单自己渲染
+
+    SDL_RenderPresent(renderer);
+}
+
+void Game::run() {
+    if (!init()) {
+        std::cerr << "Initialization failed. Program terminated." << std::endl;
+        return;
+    }
+
+    std::cout << "Game initialized successfully. Starting main loop..." << std::endl;
+
+    while (isRunning) {
+        // 计算时间增量
+        Uint32 currentTime = SDL_GetTicks();
+        deltaTime = (currentTime - lastUpdateTime) / 1000.0f; // 转换为秒
+        lastUpdateTime = currentTime;
+
+        // 限制最大时间增量，避免卡顿导致的物理异常
+        if (deltaTime > MAX_DELTA_TIME) {
+            std::cout << "Frame took too long: " << deltaTime * 1000 << "ms, clamping to " 
+                      << MAX_DELTA_TIME * 1000 << "ms" << std::endl;
+            deltaTime = MAX_DELTA_TIME;
+        }
+
+        // 输出帧率信息（可选，调试用）
+        static Uint32 frameCount = 0;
+        static Uint32 lastFpsTime = 0;
+        frameCount++;
+        if (currentTime - lastFpsTime >= 1000) { // 每秒输出一次
+            float fps = frameCount / ((currentTime - lastFpsTime) / 1000.0f);
+            std::cout << "FPS: " << fps << ", DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
+            frameCount = 0;
+            lastFpsTime = currentTime;
+        }
+
+        // 根据游戏状态执行不同的逻辑
+        switch (gameState) {
+            case STATE_MENU:
+                runMenuState();
+                break;
+                
+            case STATE_PLAYING:
+                runPlayingState();
+                break;
+                
+            case STATE_PAUSED:
+                // 可以后续实现暂停菜单
+                runPlayingState(); // 暂时使用游戏状态逻辑
+                break;
+        }
+    }
+}
+
+void Game::runMenuState() {
+    if (startMenu) {
+        int choice = startMenu->run();
+        
+        // 处理菜单选择
+        switch (choice) {
+            case 0: // 开始游戏
+                std::cout << "开始新游戏" << std::endl;
+                startNewGame();
+                gameState = STATE_PLAYING;
+                break;
+                
+            case 1: // 继续游戏
+                std::cout << "继续游戏" << std::endl;
+                if (map && player && camera) {
+                    gameState = STATE_PLAYING;
+                } else {
+                    startNewGame();
+                    gameState = STATE_PLAYING;
+                }
+                break;
+                
+            case 2: // 设置
+                std::cout << "打开设置" << std::endl;
+                // 可以在这里添加设置菜单
+                // 暂时不改变状态，继续显示主菜单
+                break;
+                
+            case 3: // 退出游戏
+                std::cout << "退出游戏" << std::endl;
+                isRunning = false;
+                break;
+        }
+    } else {
+        // 如果菜单初始化失败，直接开始游戏
+        std::cout << "菜单不可用，直接开始游戏" << std::endl;
+        startNewGame();
+        gameState = STATE_PLAYING;
+    }
+}
+
+void Game::runPlayingState() {
+    handleEvents();
+    update(deltaTime);
+    render();
+
+    // 帧率控制：目标60FPS（约16.67ms/帧）
+    Uint32 frameTime = SDL_GetTicks() - lastUpdateTime;
+    if (frameTime < 16) {
+        SDL_Delay(16 - frameTime);
+    }
+}
+
+void Game::startNewGame() {
+    // 清理现有的游戏资源
+    if (map) {
+        delete map;
+        map = nullptr;
+    }
+    if (player) {
+        delete player;
+        player = nullptr;
+    }
+    if (camera) {
+        delete camera;
+        camera = nullptr;
+    }
+
     // 加载地图
     try {
         map = new TiledMap("assets/maps/level1.tmj", renderer);
     } catch (const std::exception& e) {
         std::cerr << "fail to load the maps: " << e.what() << std::endl;
-        return false;
+        return;
     }
 
-    // 设置地图缩放 - 根据新地图调整
+    // 设置地图缩放
     map->setRenderScale(1.0f);  // 改为1倍缩放
 
     // 输出详细地图信息
@@ -100,94 +293,5 @@ bool Game::init() {
     std::cout << "Player's initial position: (" << startX << ", " << startY << ")" << std::endl;
     std::cout << "The initial position of the camera: (" << camera->x << ", " << camera->y << ")" << std::endl;
 
-    // 初始化时间变量 - 在所有初始化完成后设置
-    lastUpdateTime = SDL_GetTicks();
-    std::cout << "Time system initialized. LastUpdateTime: " << lastUpdateTime << std::endl;
-
-    isRunning = true;
-    return true;
-}
-
-void Game::handleEvents() 
-{
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) 
-    {
-        if (event.type == SDL_QUIT) 
-        {
-            isRunning = false;
-        }
-    }
-}
-
-void Game::update(float deltaTime) {
-    player->handleInput();
-    player->update(*map, deltaTime); // 传入时间增量
-    
-    glm::vec2 playerPos = player->getPosition();
-    
-    // 调试输出时间信息
-    static int updateCount = 0;
-    if (updateCount++ % 60 == 0) { // 每60帧输出一次
-        std::cout << "=== Update Info ===" << std::endl;
-        std::cout << "DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
-        std::cout << "Player Position: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
-    }
-    
-    camera->follow(playerPos, map->getRenderScale());
-}
-
-void Game::render() {
-    SDL_RenderClear(renderer);  // 清除为深灰色
-
-    // 按顺序渲染（背景→瓦片→玩家）
-    map->renderBackground(renderer, *camera);  // 背景层（最底层）
-    map->renderTiles(renderer, *camera);       // 瓦片层
-    player->render(renderer, *camera, map->getRenderScale());  // 玩家（最上层）
-
-    SDL_RenderPresent(renderer);
-}
-
-void Game::run() {
-    if (!init()) {
-        std::cerr << "Initialization failed. Program terminated." << std::endl;
-        return;
-    }
-
-    std::cout << "Starting time-based game loop..." << std::endl;
-
-    while (isRunning) {
-        // 计算时间增量
-        Uint32 currentTime = SDL_GetTicks();
-        deltaTime = (currentTime - lastUpdateTime) / 1000.0f; // 转换为秒
-        lastUpdateTime = currentTime;
-
-        // 限制最大时间增量，避免卡顿导致的物理异常
-        if (deltaTime > MAX_DELTA_TIME) {
-            std::cout << "Frame took too long: " << deltaTime * 1000 << "ms, clamping to " 
-                      << MAX_DELTA_TIME * 1000 << "ms" << std::endl;
-            deltaTime = MAX_DELTA_TIME;
-        }
-
-        // 输出帧率信息（可选，调试用）
-        static Uint32 frameCount = 0;
-        static Uint32 lastFpsTime = 0;
-        frameCount++;
-        if (currentTime - lastFpsTime >= 1000) { // 每秒输出一次
-            float fps = frameCount / ((currentTime - lastFpsTime) / 1000.0f);
-            std::cout << "FPS: " << fps << ", DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
-            frameCount = 0;
-            lastFpsTime = currentTime;
-        }
-
-        handleEvents();
-        update(deltaTime);  // 传入时间增量
-        render();
-
-        // 帧率控制：目标60FPS（约16.67ms/帧）
-        Uint32 frameTime = SDL_GetTicks() - currentTime;
-        if (frameTime < 16) {
-            SDL_Delay(16 - frameTime);
-        }
-    }
+    std::cout << "新游戏初始化完成" << std::endl;
 }

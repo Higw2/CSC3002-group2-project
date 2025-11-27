@@ -13,6 +13,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")  # 减少运行�
 set(SDL2_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/SDL2")
 set(SDL2_MIXER_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/SDL2_mixer")
 set(SDL2_IMAGE_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/SDL2_image")
+set(SDL2_TTF_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/SDL2_ttf")
 set(GLM_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/glm")  # GLM 数学库路径
 set(NLOHMANN_JSON_DIR "${CMAKE_SOURCE_DIR}/third-party/windows/nlohmann_json")  # JSON 库路径
 
@@ -26,6 +27,8 @@ include_directories(
     ${SDL2_MIXER_DIR}/x86_64-w64-mingw32/include/SDL2
     ${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/include
     ${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/include/SDL2
+    ${SDL2_TTF_DIR}/x86_64-w64-mingw32/include
+    ${SDL2_TTF_DIR}/x86_64-w64-mingw32/include/SDL2
     # GLM 数学库（纯头文件，只需包含目录）
     ${GLM_DIR}/include
     # nlohmann/json 库（纯头文件）
@@ -37,6 +40,7 @@ link_directories(
     ${SDL2_DIR}/x86_64-w64-mingw32/lib
     ${SDL2_MIXER_DIR}/x86_64-w64-mingw32/lib
     ${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/lib
+    ${SDL2_TTF_DIR}/x86_64-w64-mingw32/lib
 )
 
 # --------------------------
@@ -47,6 +51,7 @@ message("找到的.cpp文件: ${SOURCES}")  # 调试：确认源文件是否正�
 message(STATUS "SDL2 路径：${SDL2_DIR}")
 message(STATUS "SDL2_mixer 路径：${SDL2_MIXER_DIR}")
 message(STATUS "SDL2_image 路径：${SDL2_IMAGE_DIR}")
+message(STATUS "SDL2_ttf 路径：${SDL2_TTF_DIR}")
 message(STATUS "GLM 路径：${GLM_DIR}")
 message(STATUS "JSON 路径：${NLOHMANN_JSON_DIR}")
 
@@ -64,6 +69,7 @@ target_link_libraries(EchoGidge
     SDL2             # SDL2 核心库
     SDL2_mixer       # 音频库
     SDL2_image       # 图片库（支持 PNG 等格式）
+    SDL2_ttf         # 文字渲染库
     # 系统依赖库（窗口、图形、音频等）
     m user32 gdi32 winmm dxguid
 )
@@ -91,6 +97,12 @@ add_custom_command(TARGET EchoGidge POST_BUILD
     "${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/bin/libpng16-16.dll"  # PNG 支持
     "${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/bin/zlib1.dll"       # 压缩支持
     #"${SDL2_IMAGE_DIR}/x86_64-w64-mingw32/bin/libjpeg-9.dll"   # JPEG 支持（可选）
+    "$<TARGET_FILE_DIR:EchoGidge>"
+
+    # 拷贝 SDL2_ttf DLL 及其依赖
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${SDL2_TTF_DIR}/x86_64-w64-mingw32/bin/SDL2_ttf.dll"
+    "${SDL2_TTF_DIR}/x86_64-w64-mingw32/bin/libfreetype-6.dll"  # 字体渲染支持
     "$<TARGET_FILE_DIR:EchoGidge>"
 
     # 拷贝 assets 资源目录到编译目录（确保游戏能读取地图、精灵等资源）
