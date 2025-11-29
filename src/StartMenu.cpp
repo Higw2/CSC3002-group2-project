@@ -1,3 +1,4 @@
+#pragma once
 #include "StartMenu.h"
 #include <iostream>
 
@@ -40,7 +41,7 @@ bool StartMenu::init() {
 
 void StartMenu::loadFont() {
     // 尝试加载字体文件，你可以替换为你的游戏字体
-    font = TTF_OpenFont("assets/fonts/arial.ttf", 32);
+    font = TTF_OpenFont("assets/fonts/FLyouzichati-Regular-2.ttf", 32);
     if (!font) {
         // 如果指定字体不存在，尝试系统默认字体
         font = TTF_OpenFont("arial.ttf", 32);
@@ -133,14 +134,16 @@ void StartMenu::render() {
     // 渲染菜单项
     for (auto& item : menuItems) {
         if (item.texture) {
-            // 如果有纹理，使用纹理渲染
-            if (item.isSelected) {
-                // 重新创建选中状态的纹理
-                SDL_DestroyTexture(item.texture);
-                SDL_Surface* surface = TTF_RenderUTF8_Blended(font, item.text.c_str(), COLOR_SELECTED);
-                item.texture = SDL_CreateTextureFromSurface(renderer, surface);
-                SDL_FreeSurface(surface);
-            }
+            // 先销毁旧纹理
+            SDL_DestroyTexture(item.texture);
+            
+            // 根据选择状态创建新纹理
+            SDL_Color color = item.isSelected ? COLOR_SELECTED : COLOR_NORMAL;
+            SDL_Surface* surface = TTF_RenderUTF8_Blended(font, item.text.c_str(), color);
+            item.texture = SDL_CreateTextureFromSurface(renderer, surface);
+            SDL_FreeSurface(surface);
+            
+            // 渲染纹理
             SDL_RenderCopy(renderer, item.texture, nullptr, &item.rect);
         } else {
             // 备用方案：绘制彩色矩形
@@ -183,4 +186,13 @@ void StartMenu::cleanup() {
     }
     
     TTF_Quit();
+}
+
+void StartMenu::reset() {
+    quitMenu = false;
+    currentSelection = 0;
+    // 重置选择状态
+    for (size_t i = 0; i < menuItems.size(); ++i) {
+        menuItems[i].isSelected = (i == 0);
+    }
 }

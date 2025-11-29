@@ -87,9 +87,12 @@ void Game::handleEvents()
         }
         else if (event.type == SDL_KEYDOWN) {
             // 添加ESC键返回菜单的功能
-            if (event.key.keysym.sym == SDLK_ESCAPE && gameState == STATE_PLAYING) {
-                gameState = STATE_MENU;
-                std::cout << "返回开始菜单" << std::endl;
+            if (event.key.keysym.sym == SDLK_ESCAPE) {
+                if (gameState == STATE_PLAYING) {
+                    gameState = STATE_MENU;
+                    std::cout << "返回开始菜单" << std::endl;
+                }
+                // 注意：这里不处理菜单状态下的ESC，因为菜单有自己的ESC处理
             }
         }
     }
@@ -182,6 +185,7 @@ void Game::run() {
 
 void Game::runMenuState() {
     if (startMenu) {
+        startMenu->reset(); // 重置菜单状态
         int choice = startMenu->run();
         
         // 处理菜单选择
@@ -213,7 +217,7 @@ void Game::runMenuState() {
                 isRunning = false;
                 break;
         }
-    } else {
+    } else { 
         // 如果菜单初始化失败，直接开始游戏
         std::cout << "菜单不可用，直接开始游戏" << std::endl;
         startNewGame();

@@ -12,6 +12,7 @@ public:
     bool init();
     int run(); // 返回用户选择
     void cleanup();
+    void reset(); // 添加重置方法
 
 private:
     struct MenuItem {
