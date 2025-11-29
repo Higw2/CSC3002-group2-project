@@ -1,7 +1,3 @@
-#include "Player.h"
-#include <SDL2/SDL_image.h>
-#include <iostream>
-
 Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
     // 加载玩家纹理
     texture = IMG_LoadTexture(renderer, "assets/sprites/player.png");
@@ -15,7 +11,7 @@ Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
     }
 
     // 碰撞盒（相对玩家左上角）
-    hitbox = {2, 4, 12, 18};  // 微调碰撞范围
+    hitbox = {2, 4, 12, 18};
 }
 
 Player::~Player() {
@@ -23,14 +19,14 @@ Player::~Player() {
 }
 
 void Player::handleInput() {
+    if (dead) return;  // 死亡后不接受输入
+    
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
-    velocity.x = 0;  // 重置水平速度
+    velocity.x = 0;
 
-    // 左右移动 - 速度值现在在update中与deltaTime结合
     if (keys[SDL_SCANCODE_LEFT])  velocity.x = -speed;
     if (keys[SDL_SCANCODE_RIGHT]) velocity.x = speed;
 
-    // 跳跃（仅在地面）
     if ((keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_UP]) && onGround) {
         velocity.y = jumpForce;
         onGround = false;
@@ -38,9 +34,10 @@ void Player::handleInput() {
     }
 }
 
-// 修改：添加deltaTime参数
 void Player::update(const TiledMap& map, float deltaTime) {
-    // 应用重力（基于时间）
+    if (dead) return;  // 死亡后不更新物理
+    
+    // 应用重力
     velocity.y += gravity * deltaTime;
 
     // 调试输出物理信息
@@ -55,7 +52,6 @@ void Player::update(const TiledMap& map, float deltaTime) {
     float oldX = position.x;
     position.x += velocity.x * deltaTime;
     
-    // 碰撞检测（使用修复后的版本 - 无缩放坐标）
     SDL_Point testPoints[4] = {
         {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
         {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
@@ -72,7 +68,7 @@ void Player::update(const TiledMap& map, float deltaTime) {
     }
     
     if (collideX) {
-        position.x = oldX;  // 回退X位置
+        position.x = oldX;
         velocity.x = 0;
     }
 
@@ -80,7 +76,6 @@ void Player::update(const TiledMap& map, float deltaTime) {
     float oldY = position.y;
     position.y += velocity.y * deltaTime;
     
-    // 重新计算测试点（Y方向移动后）
     SDL_Point testPointsY[4] = {
         {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
         {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
@@ -95,22 +90,21 @@ void Player::update(const TiledMap& map, float deltaTime) {
     for (int i = 0; i < 4; i++) {
         if (map.isColliding(testPointsY[i].x, testPointsY[i].y)) {
             collideY = true;
-            if (i < 2) collideTop = true;    // 前两个点是顶部
-            else collideBottom = true;       // 后两个点是底部
+            if (i < 2) collideTop = true;
+            else collideBottom = true;
         }
     }
 
     if (collideY) {
-        if (collideBottom && velocity.y > 0) {  // 下落时碰撞（地面）
+        if (collideBottom && velocity.y > 0) {
             onGround = true;
-            // 对齐到瓦片顶部
             float worldY = position.y + hitbox.y + hitbox.h;
             int tileY = (int)(worldY) / map.getTileHeight();
             position.y = (tileY * map.getTileHeight()) - hitbox.y - hitbox.h;
             velocity.y = 0;
             std::cout << "Landed on ground" << std::endl;
         } 
-        else if (collideTop && velocity.y < 0) {  // 上升时碰撞（天花板）
+        else if (collideTop && velocity.y < 0) {
             position.y = oldY;
             velocity.y = 0;
             std::cout << "Hit ceiling" << std::endl;
@@ -136,19 +130,45 @@ void Player::update(const TiledMap& map, float deltaTime) {
         onGround = true;
     }
 
+    // 检查危险物碰撞
+    checkCollisionsWithHazards(map);
+
     // 简化调试输出
     static int outputCount = 0;
     if (outputCount++ % 60 == 0) {
         std::cout << "Player - Pos: (" << position.x << ", " << position.y 
                   << ") Vel: (" << velocity.x << ", " << velocity.y 
-                  << ") OnGround: " << onGround << std::endl;
+                  << ") OnGround: " << onGround 
+                  << " Dead: " << dead << std::endl;
+    }
+}
+
+void Player::checkCollisionsWithHazards(const TiledMap& map) {
+    // 检查四个碰撞点是否与危险物重叠
+    SDL_Point testPoints[4] = {
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        if (map.isHazard(testPoints[i].x, testPoints[i].y)) {
+            std::cout << "Player died! Hazard collision at point " << i 
+                      << " (" << testPoints[i].x << ", " << testPoints[i].y << ")" << std::endl;
+            kill();
+            return;
+        }
     }
 }
 
 void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderScale) {
-    const SDL_Rect& view = camera.getView();
+    if (dead) {
+        // 死亡时可以显示特殊效果，比如半透明
+        SDL_SetTextureAlphaMod(texture, 128);  // 半透明
+    }
     
-    // 应用缩放
+    const SDL_Rect& view = camera.getView();
     SDL_Rect dest = {
         (int)((position.x - view.x) * renderScale),
         (int)((position.y - view.y) * renderScale),
@@ -156,5 +176,8 @@ void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderSc
         (int)(24 * renderScale)
     };
     SDL_RenderCopy(renderer, texture, nullptr, &dest);
+    
+    if (dead) {
+        SDL_SetTextureAlphaMod(texture, 255);  // 恢复不透明
+    }
 }
-
