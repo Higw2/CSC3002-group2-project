@@ -1,4 +1,3 @@
-#pragma once
 #include "StartMenu.h"
 #include <iostream>
 
@@ -15,6 +14,12 @@ bool StartMenu::init() {
         return false;
     }
 
+    // 加载背景图片
+    if (!loadBackground()) {
+        std::cerr << "背景图片加载失败，将使用纯色背景" << std::endl;
+        // 不返回false，允许继续使用纯色背景
+    }
+
     // 加载字体
     loadFont();
     if (!font) {
@@ -23,7 +28,7 @@ bool StartMenu::init() {
     }
 
     // 创建菜单项
-    int startY = 200;
+    int startY = 125;
     int itemSpacing = 60;
     
     createMenuItem("开始游戏", startY);
@@ -36,6 +41,19 @@ bool StartMenu::init() {
         menuItems[0].isSelected = true;
     }
 
+    return true;
+}
+
+bool StartMenu::loadBackground() {
+    // 尝试加载背景图片，你可以替换为你想要的背景图片路径
+    backgroundTexture = IMG_LoadTexture(renderer, "assets/menu/background.jpg");
+    if (!backgroundTexture) {
+            if (!backgroundTexture) {
+                std::cerr << "无法加载背景图片: " << IMG_GetError() << std::endl;
+                return false;
+            }
+        }
+    std::cout << "背景图片加载成功" << std::endl;
     return true;
 }
 
@@ -113,9 +131,25 @@ void StartMenu::handleEvents() {
 }
 
 void StartMenu::render() {
-    // 设置背景色（与游戏背景一致）
-    SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND.r, COLOR_BACKGROUND.g, COLOR_BACKGROUND.b, 255);
+    // 清除渲染器
     SDL_RenderClear(renderer);
+    
+    // 渲染背景
+    if (backgroundTexture) {
+        // 如果有背景图片，渲染全屏背景
+        SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
+    } else {
+        // 如果没有背景图片，使用纯色背景
+        SDL_SetRenderDrawColor(renderer, COLOR_BACKGROUND.r, COLOR_BACKGROUND.g, COLOR_BACKGROUND.b, 255);
+        SDL_RenderClear(renderer);
+    }
+    
+    // 渲染半透明黑色覆盖层，提高文字可读性（可选）
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128); // 半透明黑色
+    SDL_Rect overlay = {0, 0, 800, 350}; // 覆盖整个屏幕
+    SDL_RenderFillRect(renderer, &overlay);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     
     // 渲染菜单标题
     if (font) {
@@ -173,6 +207,12 @@ int StartMenu::run() {
 }
 
 void StartMenu::cleanup() {
+    // 清理背景纹理
+    if (backgroundTexture) {
+        SDL_DestroyTexture(backgroundTexture);
+        backgroundTexture = nullptr;
+    }
+    
     for (auto& item : menuItems) {
         if (item.texture) {
             SDL_DestroyTexture(item.texture);

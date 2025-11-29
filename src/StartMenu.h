@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,7 @@ private:
 
     SDL_Renderer* renderer;
     TTF_Font* font = nullptr;
+    SDL_Texture* backgroundTexture = nullptr; // 添加背景纹理
     std::vector<MenuItem> menuItems;
     int currentSelection = 0;
     bool quitMenu = false;
@@ -37,4 +39,5 @@ private:
     void render();
     void createMenuItem(const std::string& text, int yPos);
     void loadFont();
+    bool loadBackground(); // 添加加载背景方法
 };
