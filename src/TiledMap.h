@@ -14,6 +14,7 @@ public:
     void renderBackground(SDL_Renderer* renderer, const Camera& camera) const;
     void renderTiles(SDL_Renderer* renderer, const Camera& camera) const;
     bool isColliding(int worldX, int worldY) const;
+    bool isHazard(int worldX, int worldY) const;  // 新增：危险物检测
 
     // 公共接口
     int getMapPixelWidth() const { return mapWidth * tileWidth; }
@@ -28,6 +29,7 @@ public:
     const std::vector<std::vector<int>>& getMainLayer() const { return mainLayer; }
     const std::vector<std::vector<int>>& getBackLayer() const { return backLayer; }
     bool isSolidTile(int tileId) const { return solidTiles.count(tileId) > 0; }
+    bool isHazardTile(int tileId) const { return hazardTiles.count(tileId) > 0; }
 
 private:
     struct ImageLayer {
@@ -42,12 +44,11 @@ private:
         int offsety = 0;
     };
 
-    // 私有渲染函数
     void renderImageLayer(SDL_Renderer* renderer, const Camera& camera, const ImageLayer& layer) const;
     void renderBackLayer(SDL_Renderer* renderer, const Camera& camera) const;
     void renderMainLayer(SDL_Renderer* renderer, const Camera& camera) const;
+    void markTilesAsHazards();  // 新增：临时标记危险瓦片
 
-    // 成员变量（关键：将 tilesetMap/firstGidMap 改为类成员，而非局部变量）
     int tileWidth = 16;
     int tileHeight = 16;
     int mapWidth = 0;
@@ -56,12 +57,12 @@ private:
     int contentPixelWidth = 0;
     int contentPixelHeight = 0;
     std::unordered_set<int> solidTiles;
+    std::unordered_set<int> hazardTiles;  // 危险瓦片集合
     std::vector<std::vector<int>> backLayer;
     std::vector<std::vector<int>> mainLayer;
     std::unordered_map<int, SDL_Texture*> itemTextures;
     std::unordered_map<int, std::pair<int, int>> itemSizes;
     std::vector<ImageLayer> imageLayers;
-    // 关键修复：瓦片集映射改为类成员，确保渲染时可访问
-    std::unordered_map<std::string, SDL_Texture*> tilesetMap;  
-    std::unordered_map<std::string, int> firstGidMap;          
+    std::unordered_map<std::string, SDL_Texture*> tilesetMap;
+    std::unordered_map<std::string, int> firstGidMap;
 };

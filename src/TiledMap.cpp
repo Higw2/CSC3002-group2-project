@@ -22,7 +22,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
         throw std::runtime_error("JSON parsing failed: " + std::string(e.what()));
     }
 
-    // 1. 解析地图基本信息（增加类型检查）
+    // 1. 解析地图基本信息
     if (!j.contains("tilewidth") || !j["tilewidth"].is_number_integer() ||
         !j.contains("tileheight") || !j["tileheight"].is_number_integer() ||
         !j.contains("width") || !j["width"].is_number_integer() ||
@@ -36,12 +36,11 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
     std::cout << "Map basic info: " << mapWidth << "x" << mapHeight 
               << ", tiles: " << tileWidth << "x" << tileHeight << std::endl;
 
-    // 2. 解析瓦片集（核心修改：适配 level1.tmj 结构）
+    // 2. 解析瓦片集
     if (j.contains("tilesets") && j["tilesets"].is_array()) 
     {
         for (const auto& ts : j["tilesets"]) 
         {
-            // 基础字段检查（name 和 firstgid 必须存在且类型正确）
             if (!ts.contains("name") || !ts["name"].is_string() ||
                 !ts.contains("firstgid") || !ts["firstgid"].is_number_integer()) 
             {
@@ -50,16 +49,14 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
             }
             std::string name = ts["name"].get<std::string>();
             int firstGid = ts["firstgid"].get<int>();
-            firstGidMap[name] = firstGid;  // 存储瓦片集起始GID
+            firstGidMap[name] = firstGid;
             std::cout << "Processing tileset: " << name << " (firstgid: " << firstGid << ")" << std::endl;
 
-            // 3. 加载瓦片集纹理（区分普通瓦片集和 items 瓦片集）
+            // 3. 加载瓦片集纹理
             SDL_Texture* tilesetTex = nullptr;
             if (name != "items") {
-                // 普通瓦片集（basic/Cave1）：从 tileset 图片加载
                 if (!ts.contains("image") || !ts["image"].is_string()) {
                     std::cerr << "Tileset " << name << " missing 'image' (string) field" << std::endl;
-                    // 创建默认灰色纹理备用
                     SDL_Surface* surface = SDL_CreateRGBSurface(0, tileWidth, tileHeight, 32, 0, 0, 0, 0);
                     SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 128, 128, 128));
                     tilesetTex = SDL_CreateTextureFromSurface(renderer, surface);
@@ -75,7 +72,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 if (!tilesetTex) {
                     std::cerr << "Failed to load tileset texture: " << name << " - " << IMG_GetError() 
                               << ", path: " << imgPath << std::endl;
-                    // 创建红色默认纹理备用
                     SDL_Surface* surface = SDL_CreateRGBSurface(0, tileWidth, tileHeight, 32, 0, 0, 0, 0);
                     SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 255, 0, 0));
                     tilesetTex = SDL_CreateTextureFromSurface(renderer, surface);
@@ -83,41 +79,40 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 } else {
                     std::cout << "Successfully loaded tileset: " << name << " (" << imgPath << ")" << std::endl;
                 }
-                tilesetMap[name] = tilesetTex;  // 存储普通瓦片集纹理
+                tilesetMap[name] = tilesetTex;
             }
 
-            // 4. 解析瓦片属性（碰撞属性 + items 瓦片单独纹理）
+            // 4. 解析瓦片属性（只解析碰撞属性，危险属性后面统一处理）
             if (ts.contains("tiles") && ts["tiles"].is_array()) 
             {
                 for (const auto& tile : ts["tiles"]) 
                 {
-                    // 基础检查：tile 必须是对象，且包含 id
                     if (!tile.is_object() || !tile.contains("id") || !tile["id"].is_number_integer()) {
                         std::cerr << "Skipping invalid tile in " << name << ": Not an object or missing 'id' (integer)" << std::endl;
                         continue;
                     }
                     int localId = tile["id"].get<int>();
-                    int globalId = firstGid + localId;  // 计算全局GID
+                    int globalId = firstGid + localId;
 
-                    // 4.1 处理碰撞属性（目前这里只有Flat_Terrain一种碰撞！对应分工的同学可以看下实体文档，还有几种碰撞特性，写好了我在这边加上去）
+                    // 只处理碰撞属性，危险属性后面统一标记
                     if (tile.contains("properties") && tile["properties"].is_array()) {
                         for (const auto& prop : tile["properties"]) {
                             if (!prop.is_object() || !prop.contains("name") || !prop["name"].is_string() ||
                                 !prop.contains("value") || !prop["value"].is_boolean()) {
-                                continue;  // 跳过无效属性
+                                continue;
                             }
                             std::string propName = prop["name"].get<std::string>();
                             bool propValue = prop["value"].get<bool>();
-                            if ((propName == "Flat_Terrain" ) && propValue) {
+                            
+                            if ((propName == "Flat_Terrain") && propValue) {
                                 solidTiles.insert(globalId);
                                 std::cout << "  - Tile " << globalId << " (local " << localId << ") marked as solid" << std::endl;
                             }
                         }
                     }
 
-                    // 4.2 处理 items 瓦片集（单个瓦片单独加载纹理）
+                    // items瓦片集处理（保持不变）
                     if (name == "items") {
-                        // 检查 items 瓦片必需字段（image/imagewidth/imageheight）
                         if (!tile.contains("image") || !tile["image"].is_string() ||
                             !tile.contains("imagewidth") || !tile["imagewidth"].is_number_integer() ||
                             !tile.contains("imageheight") || !tile["imageheight"].is_number_integer()) {
@@ -130,7 +125,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                         int imgW = tile["imagewidth"].get<int>();
                         int imgH = tile["imageheight"].get<int>();
 
-                        // 加载 items 瓦片纹理
                         SDL_Texture* itemTex = IMG_LoadTexture(renderer, imgPath.c_str());
                         if (itemTex) {
                             itemTextures[globalId] = itemTex;
@@ -145,7 +139,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
         }
     }
 
-    // 5. 解析图层（back/main 瓦片层 + 图像背景层）
+    // 5. 解析图层（保持不变）
     if (j.contains("layers") && j["layers"].is_array()) 
     {
         for (const auto& layer : j["layers"]) 
@@ -159,7 +153,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
             std::string layerType = layer["type"].get<std::string>();
             std::cout << "Processing layer: " << layerName << " (type: " << layerType << ")" << std::endl;
 
-            // 5.1 解析图像背景层（如 far1/middle1/Cave1-far）
             if (layerType == "imagelayer") 
             {
                 if (!layer.contains("image") || !layer["image"].is_string()) {
@@ -168,7 +161,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 }
 
                 ImageLayer imgLayer;
-                // 可选字段：x/y/opacity/parallaxx/repeatx（默认值兜底）
                 imgLayer.x = layer.value("x", 0);
                 imgLayer.y = layer.value("y", 0);
                 imgLayer.opacity = layer.value("opacity", 1.0f);
@@ -177,7 +169,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 imgLayer.offsetx = layer.value("offsetx", 0);
                 imgLayer.offsety = layer.value("offsety", 0);
 
-                // 加载背景纹理
                 std::string imgPath = "assets/" + layer["image"].get<std::string>();
                 imgLayer.texture = IMG_LoadTexture(renderer, imgPath.c_str());
                 if (!imgLayer.texture) {
@@ -185,7 +176,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                     continue;
                 }
 
-                // 获取背景图像尺寸（优先用 JSON 字段，其次查询纹理）
                 if (layer.contains("imagewidth") && layer["imagewidth"].is_number_integer() &&
                     layer.contains("imageheight") && layer["imageheight"].is_number_integer()) {
                     imgLayer.imageWidth = layer["imagewidth"].get<int>();
@@ -198,7 +188,6 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 std::cout << "Loaded imagelayer: " << layerName << " (" << imgLayer.imageWidth << "x" << imgLayer.imageHeight << ")" << std::endl;
             }
 
-            // 5.2 解析瓦片层（back/main）
             if ((layerName == "back" || layerName == "main") && layerType == "tilelayer") 
             {
                 if (!layer.contains("data") || !layer["data"].is_array() ||
@@ -213,20 +202,18 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 int layerHeight = layer["height"].get<int>();
                 std::cout << "Tilelayer " << layerName << " size: " << layerWidth << "x" << layerHeight << " tiles" << std::endl;
 
-                // 初始化并填充图层数据
                 std::vector<std::vector<int>> tileLayer(layerHeight, std::vector<int>(layerWidth, 0));
                 for (int y = 0; y < layerHeight; y++) {
                     for (int x = 0; x < layerWidth; x++) {
                         int index = y * layerWidth + x;
                         if (index >= data.size() || !data[index].is_number_integer()) {
-                            tileLayer[y][x] = 0;  // 越界或无效数据默认0
+                            tileLayer[y][x] = 0;
                             continue;
                         }
                         tileLayer[y][x] = data[index].get<int>();
                     }
                 }
 
-                // 存储图层
                 if (layerName == "back") {
                     backLayer = tileLayer;
                     std::cout << "Back layer loaded: " << backLayer.size() << " rows, " << backLayer[0].size() << " cols" << std::endl;
@@ -238,21 +225,47 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
         }
     }
 
-    // 6. 计算实际内容尺寸（基于 main 层，无 main 层则用地图尺寸）
+    // 6. 计算实际内容尺寸
     int layerWidth = mainLayer.empty() ? mapWidth : mainLayer[0].size();
     int layerHeight = mainLayer.empty() ? mapHeight : mainLayer.size();
     contentPixelWidth = layerWidth * tileWidth;
     contentPixelHeight = layerHeight * tileHeight;
 
+    // 7. 标记危险瓦片（新增）
+    markTilesAsHazards();
+
     // 加载完成日志
     std::cout << "Map loading completed!" << std::endl;
     std::cout << "Content size: " << contentPixelWidth << "x" << contentPixelHeight << " pixels" << std::endl;
     std::cout << "Solid tiles count: " << solidTiles.size() << std::endl;
+    std::cout << "Hazard tiles count: " << hazardTiles.size() << std::endl;
     std::cout << "Tilesets loaded: " << tilesetMap.size() << std::endl;
     std::cout << "Items tiles loaded: " << itemTextures.size() << std::endl;
 }
 
-// 析构函数（释放所有纹理，避免内存泄漏）
+// 新增：临时标记危险瓦片的方法
+void TiledMap::markTilesAsHazards() {
+    std::cout << "Marking hazard tiles..." << std::endl;
+    
+    // 临时方案：手动指定一些瓦片ID作为危险物
+    // 这里可以添加你认为可能是陷阱或敌人的瓦片ID
+    // 示例：假设以下ID是危险瓦片（请根据你的实际地图调整）
+    std::vector<int> temporaryHazardIds = {
+        // 在这里添加你认为可能是陷阱的瓦片ID
+        // 例如：67, 68, 69 等
+        // 暂时留空，后面的人可以在Tiled编辑器中添加Hazard属性
+    };
+    
+    for (int tileId : temporaryHazardIds) {
+        hazardTiles.insert(tileId);
+        std::cout << "  - Tile " << tileId << " temporarily marked as HAZARD" << std::endl;
+    }
+    
+    // 注意：后面的人需要在Tiled编辑器中为陷阱和敌人瓦片添加"Hazard"属性
+    // 这样就会自动被识别为危险物
+    std::cout << "Hazard system ready. Later, add 'Hazard' property to trap/enemy tiles in Tiled editor." << std::endl;
+}
+
 TiledMap::~TiledMap() 
 {
     for (auto& [name, tex] : tilesetMap) {
@@ -266,14 +279,34 @@ TiledMap::~TiledMap()
     }
 }
 
-// 渲染背景层（图像层）
+// 危险物检测方法
+bool TiledMap::isHazard(int worldX, int worldY) const {
+    // 将缩放后的世界坐标转换为原始坐标
+    float originalX = (float)worldX / renderScale;
+    float originalY = (float)worldY / renderScale;
+
+    // 计算当前坐标对应的瓦片
+    int tileX = (int)originalX / tileWidth;
+    int tileY = (int)originalY / tileHeight;
+    int layerWidth = mainLayer.empty() ? mapWidth : mainLayer[0].size();
+    int layerHeight = mainLayer.empty() ? mapHeight : mainLayer.size();
+
+    // 边界检查
+    if (tileX < 0 || tileX >= layerWidth || tileY < 0 || tileY >= layerHeight) {
+        return false;
+    }
+
+    // 检查瓦片是否为危险物
+    int tileId = mainLayer[tileY][tileX];
+    return hazardTiles.count(tileId) > 0;
+}
+
 void TiledMap::renderBackground(SDL_Renderer* renderer, const Camera& camera) const {
     for (const auto& layer : imageLayers) {
         renderImageLayer(renderer, camera, layer);
     }
 }
 
-// 渲染单个图像背景层（适配 parallax 视差效果和重复渲染）
 void TiledMap::renderImageLayer(SDL_Renderer* renderer, const Camera& camera, const ImageLayer& layer) const {
     if (!layer.texture) return;
     const SDL_Rect& view = camera.getView();
@@ -321,13 +354,11 @@ void TiledMap::renderImageLayer(SDL_Renderer* renderer, const Camera& camera, co
     SDL_SetTextureAlphaMod(layer.texture, 255);
 }
 
-// 渲染所有瓦片层（back + main）
 void TiledMap::renderTiles(SDL_Renderer* renderer, const Camera& camera) const {
     renderBackLayer(renderer, camera);
     renderMainLayer(renderer, camera);
 }
 
-// 渲染 back 瓦片层（适配缩放和视野裁剪）
 void TiledMap::renderBackLayer(SDL_Renderer* renderer, const Camera& camera) const {
     if (backLayer.empty() || (tilesetMap.empty() && itemTextures.empty())) {
         std::cerr << "Back layer render skipped: empty layer or no textures" << std::endl;
@@ -415,7 +446,6 @@ void TiledMap::renderBackLayer(SDL_Renderer* renderer, const Camera& camera) con
     }
 }
 
-// 渲染 main 瓦片层（逻辑与 back 层一致，复用查找逻辑）
 void TiledMap::renderMainLayer(SDL_Renderer* renderer, const Camera& camera) const {
     if (mainLayer.empty() || (tilesetMap.empty() && itemTextures.empty())) {
         std::cerr << "Main layer render skipped: empty layer or no textures" << std::endl;
