@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
 #include "TiledMap.h"
+#include "Camera.h"
 
 class Player {
 public:
@@ -31,4 +32,4 @@ private:
     const float speed = 180.0f;
     const float jumpForce = -480.0f;
     const float gravity = 1200.0f;
-}
+};

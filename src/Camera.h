@@ -9,25 +9,22 @@ public:
     Camera(int screenW, int screenH, int mapPixelW, int mapPixelH)
         : screenWidth(screenW), screenHeight(screenH),
           mapPixelWidth(mapPixelW), mapPixelHeight(mapPixelH) {
-        std::cout << "init the camera =" << screenW << "x" << screenH 
-                  << ", maps =" << mapPixelW << "x" << mapPixelH << std::endl;
+        std::cout << "初始化相机 - 屏幕:" << screenW << "x" << screenH 
+                  << ", 地图:" << mapPixelW << "x" << mapPixelH << std::endl;
     }
 
     // 跟随玩家（使玩家居中，限制在地图内）
     void follow(const glm::vec2& playerPos, float renderScale = 1.0f) {
-        // 玩家中心坐标（考虑缩放后的玩家尺寸）现在是缩放了2倍的
+        // 玩家位置已经应用了缩放，所以这里不需要再乘以 renderScale
+        // 直接使用玩家位置的中心点
         glm::vec2 playerCenter = {
-            playerPos.x * renderScale + (16 * renderScale) / 2.0f,
-            playerPos.y * renderScale + (24 * renderScale) / 2.0f
+            playerPos.x + 8.0f,  // 玩家宽度16，中心在8
+            playerPos.y + 12.0f  // 玩家高度24，中心在12
         };
-
-        std::cout << "thr position of player(after dealing): (" << playerCenter.x << ", " << playerCenter.y << ")" << std::endl;
 
         // 计算相机目标位置（玩家居中）
         float targetX = playerCenter.x - screenWidth / 2.0f;
-        float targetY =  playerCenter.y - screenHeight / 2.0f;
-
-        std::cout << "the target position of the camera: (" << targetX << ", " << targetY << ")" << std::endl;
+        float targetY = playerCenter.y - screenHeight / 2.0f;
 
         // 严格限制相机边界
         float minX = 0.0f;
@@ -35,23 +32,22 @@ public:
         float maxX = std::max(0.0f, (float)(mapPixelWidth - screenWidth));
         float maxY = std::max(0.0f, (float)(mapPixelHeight - screenHeight));
 
-        std::cout << "the edge of the camer: X[" << minX << "~" << maxX << "], Y[" << minY << "~" << maxY << "]" << std::endl;
+        // 应用边界限制
+        x = std::clamp(targetX, minX, maxX);
+        y = std::clamp(targetY, minY, maxY);
 
-        // 水平方向
-        if (mapPixelWidth <= screenWidth) {
-            x = (mapPixelWidth - screenWidth) / 2.0f;
-        } else {
-            x = std::clamp(targetX, minX, maxX);
+        // 调试输出（减少频率）
+        static int debugCount = 0;
+        if (debugCount++ % 180 == 0) {
+            std::cout << "=== 相机跟随 ===" << std::endl;
+            std::cout << "玩家位置: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
+            std::cout << "玩家中心: (" << playerCenter.x << ", " << playerCenter.y << ")" << std::endl;
+            std::cout << "相机目标: (" << targetX << ", " << targetY << ")" << std::endl;
+            std::cout << "相机限制: X[" << minX << "~" << maxX << "], Y[" << minY << "~" << maxY << "]" << std::endl;
+            std::cout << "相机最终: (" << x << ", " << y << ")" << std::endl;
+            std::cout << "地图尺寸: " << mapPixelWidth << "x" << mapPixelHeight << std::endl;
+            std::cout << "屏幕尺寸: " << screenWidth << "x" << screenHeight << std::endl;
         }
-
-        // 垂直方向
-        if (mapPixelHeight <= screenHeight) {
-            y = (mapPixelHeight - screenHeight) / 2.0f;
-        } else {
-            y = std::clamp(targetY, minY, maxY);
-        }
-
-        std::cout << "the fianl position of the camera: (" << x << ", " << y << ")" << std::endl;
     }
 
     SDL_Rect getView() const {
