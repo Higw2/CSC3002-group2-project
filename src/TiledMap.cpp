@@ -52,37 +52,34 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
             firstGidMap[name] = firstGid;
             std::cout << "Processing tileset: " << name << " (firstgid: " << firstGid << ")" << std::endl;
 
-            // 3. 加载瓦片集纹理
+            // 3. 加载瓦片集纹理 - 修改：加载所有瓦片集纹理，包括items
             SDL_Texture* tilesetTex = nullptr;
-            if (name != "items") {
-                if (!ts.contains("image") || !ts["image"].is_string()) {
-                    std::cerr << "Tileset " << name << " missing 'image' (string) field" << std::endl;
-                    SDL_Surface* surface = SDL_CreateRGBSurface(0, tileWidth, tileHeight, 32, 0, 0, 0, 0);
-                    SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 128, 128, 128));
-                    tilesetTex = SDL_CreateTextureFromSurface(renderer, surface);
-                    SDL_FreeSurface(surface);
-                    tilesetMap[name] = tilesetTex;
-                    std::cout << "Created default texture for tileset: " << name << std::endl;
-                    continue;
-                }
-
+            if (ts.contains("image") && ts["image"].is_string()) {
                 std::string imagePath = ts["image"].get<std::string>();
                 std::string imgPath = "assets/" + imagePath;
                 tilesetTex = IMG_LoadTexture(renderer, imgPath.c_str());
                 if (!tilesetTex) {
                     std::cerr << "Failed to load tileset texture: " << name << " - " << IMG_GetError() 
                               << ", path: " << imgPath << std::endl;
+                    // 创建默认纹理
                     SDL_Surface* surface = SDL_CreateRGBSurface(0, tileWidth, tileHeight, 32, 0, 0, 0, 0);
-                    SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 255, 0, 0));
+                    SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 128, 128, 128));
                     tilesetTex = SDL_CreateTextureFromSurface(renderer, surface);
                     SDL_FreeSurface(surface);
                 } else {
                     std::cout << "Successfully loaded tileset: " << name << " (" << imgPath << ")" << std::endl;
                 }
-                tilesetMap[name] = tilesetTex;
+            } else {
+                // 对于没有整体图片的瓦片集（如items），创建默认纹理
+                SDL_Surface* surface = SDL_CreateRGBSurface(0, tileWidth, tileHeight, 32, 0, 0, 0, 0);
+                SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 128, 128, 128));
+                tilesetTex = SDL_CreateTextureFromSurface(renderer, surface);
+                SDL_FreeSurface(surface);
+                std::cout << "Created default texture for tileset: " << name << std::endl;
             }
+            tilesetMap[name] = tilesetTex;
 
-            // 4. 解析瓦片属性（只解析碰撞属性，危险属性后面统一处理）
+            // 4. 解析瓦片属性（包括碰撞属性和危险属性）
             if (ts.contains("tiles") && ts["tiles"].is_array()) 
             {
                 for (const auto& tile : ts["tiles"]) 
@@ -94,19 +91,29 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                     int localId = tile["id"].get<int>();
                     int globalId = firstGid + localId;
 
-                    // 只处理碰撞属性，危险属性后面统一标记
+                    // 处理碰撞属性和危险属性
                     if (tile.contains("properties") && tile["properties"].is_array()) {
                         for (const auto& prop : tile["properties"]) {
-                            if (!prop.is_object() || !prop.contains("name") || !prop["name"].is_string() ||
-                                !prop.contains("value") || !prop["value"].is_boolean()) {
+                            if (!prop.is_object() || !prop.contains("name") || !prop["name"].is_string()) {
                                 continue;
                             }
                             std::string propName = prop["name"].get<std::string>();
-                            bool propValue = prop["value"].get<bool>();
                             
-                            if ((propName == "Flat_Terrain") && propValue) {
-                                solidTiles.insert(globalId);
-                                std::cout << "  - Tile " << globalId << " (local " << localId << ") marked as solid" << std::endl;
+                            // 处理碰撞属性
+                            if (propName == "Flat_Terrain" && prop.contains("value") && prop["value"].is_boolean()) {
+                                bool propValue = prop["value"].get<bool>();
+                                if (propValue) {
+                                    solidTiles.insert(globalId);
+                                    std::cout << "  - Tile " << globalId << " (local " << localId << ") marked as solid" << std::endl;
+                                }
+                            }
+                            // 处理尖刺危险属性 - 新增
+                            else if (propName == "Spike" && prop.contains("value") && prop["value"].is_boolean()) {
+                                bool propValue = prop["value"].get<bool>();
+                                if (propValue) {
+                                    hazardTiles.insert(globalId);
+                                    std::cout << "  - Tile " << globalId << " (local " << localId << ") marked as HAZARD (Spike)" << std::endl;
+                                }
                             }
                         }
                     }
@@ -206,7 +213,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
                 for (int y = 0; y < layerHeight; y++) {
                     for (int x = 0; x < layerWidth; x++) {
                         int index = y * layerWidth + x;
-                        if (index >= data.size() || !data[index].is_number_integer()) {
+                        if (index >= (int)data.size() || !data[index].is_number_integer()) {
                             tileLayer[y][x] = 0;
                             continue;
                         }
@@ -231,7 +238,7 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
     contentPixelWidth = layerWidth * tileWidth;
     contentPixelHeight = layerHeight * tileHeight;
 
-    // 7. 标记危险瓦片（新增）
+    // 7. 标记危险瓦片（修改：现在已经在解析属性时自动标记）
     markTilesAsHazards();
 
     // 加载完成日志
@@ -243,28 +250,22 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
     std::cout << "Items tiles loaded: " << itemTextures.size() << std::endl;
 }
 
-// 新增：临时标记危险瓦片的方法
 void TiledMap::markTilesAsHazards() {
-    std::cout << "Marking hazard tiles..." << std::endl;
-    
-    // 临时方案：手动指定一些瓦片ID作为危险物
-    // 这里可以添加你认为可能是陷阱或敌人的瓦片ID
-    // 示例：假设以下ID是危险瓦片（请根据你的实际地图调整）
-    std::vector<int> temporaryHazardIds = {
-        // 在这里添加你认为可能是陷阱的瓦片ID
-        // 例如：67, 68, 69 等
-        // 暂时留空，后面的人可以在Tiled编辑器中添加Hazard属性
-    };
-    
-    for (int tileId : temporaryHazardIds) {
-        hazardTiles.insert(tileId);
-        std::cout << "  - Tile " << tileId << " temporarily marked as HAZARD" << std::endl;
+    std::cout << "=== 危险瓦片标记 ===" << std::endl;
+    std::cout << "总危险瓦片数量: " << hazardTiles.size() << std::endl;
+    for (int tileId : hazardTiles) {
+        std::cout << "  - 危险瓦片 ID: " << tileId << std::endl;
     }
     
-    // 注意：后面的人需要在Tiled编辑器中为陷阱和敌人瓦片添加"Hazard"属性
-    // 这样就会自动被识别为危险物
-    std::cout << "Hazard system ready. Later, add 'Hazard' property to trap/enemy tiles in Tiled editor." << std::endl;
+    if (hazardTiles.empty()) {
+        std::cout << "警告: 没有找到任何危险瓦片!" << std::endl;
+        std::cout << "请检查 Tiled 地图中是否有瓦片设置了 'Spike' 属性" << std::endl;
+    } else {
+        std::cout << "危险系统就绪。带有 'Spike' 属性的瓦片已自动标记为危险物。" << std::endl;
+    }
 }
+
+// 其余 TiledMap.cpp 的代码保持不变...
 
 TiledMap::~TiledMap() 
 {
@@ -281,13 +282,14 @@ TiledMap::~TiledMap()
 
 // 危险物检测方法
 bool TiledMap::isHazard(int worldX, int worldY) const {
-    // 将缩放后的世界坐标转换为原始坐标
+    // 将世界坐标转换为原始坐标（考虑缩放）
     float originalX = (float)worldX / renderScale;
     float originalY = (float)worldY / renderScale;
 
     // 计算当前坐标对应的瓦片
     int tileX = (int)originalX / tileWidth;
     int tileY = (int)originalY / tileHeight;
+    
     int layerWidth = mainLayer.empty() ? mapWidth : mainLayer[0].size();
     int layerHeight = mainLayer.empty() ? mapHeight : mainLayer.size();
 
@@ -298,7 +300,18 @@ bool TiledMap::isHazard(int worldX, int worldY) const {
 
     // 检查瓦片是否为危险物
     int tileId = mainLayer[tileY][tileX];
-    return hazardTiles.count(tileId) > 0;
+    bool isHazard = hazardTiles.count(tileId) > 0;
+    
+    // 调试输出
+    static int hazardDebugCount = 0;
+    if (hazardDebugCount++ % 180 == 0 && isHazard) { // 每3秒输出一次危险物检测
+        std::cout << "危险物检测 - 世界坐标: (" << worldX << ", " << worldY 
+                  << ") -> 原始坐标: (" << originalX << ", " << originalY
+                  << ") -> 瓦片坐标: (" << tileX << ", " << tileY 
+                  << ") -> 瓦片ID: " << tileId << std::endl;
+    }
+    
+    return isHazard;
 }
 
 void TiledMap::renderBackground(SDL_Renderer* renderer, const Camera& camera) const {

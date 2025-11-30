@@ -5,7 +5,7 @@
 #include "TiledMap.h"
 #include "Player.h"
 #include "Camera.h"
-#include "StartMenu.h"  // 添加这行
+#include "StartMenu.h"
 
 class Game {
 public:
@@ -18,7 +18,8 @@ public:
     enum GameState {
         STATE_MENU,
         STATE_PLAYING,
-        STATE_PAUSED
+        STATE_PAUSED,
+        STATE_DEATH_ANIMATION
     };
 
 private:
@@ -28,21 +29,30 @@ private:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 350;
 
-    // 添加时间管理变量
-    Uint32 lastUpdateTime = 0;    // 上一帧的时间戳（毫秒）
-    float deltaTime = 0.016f;     // 时间增量（秒），初始化为16ms
-    const float MAX_DELTA_TIME = 0.05f; // 最大时间增量，避免卡顿时的物理异常
+    // 时间管理变量
+    Uint32 lastUpdateTime = 0;
+    float deltaTime = 0.016f;
+    const float MAX_DELTA_TIME = 0.05f;
 
     TiledMap* map = nullptr;
     Player* player = nullptr;
     Camera* camera = nullptr;
-    StartMenu* startMenu = nullptr;  // 添加开始菜单
-    GameState gameState = STATE_MENU; // 初始状态为菜单
+    StartMenu* startMenu = nullptr;
+    GameState gameState = STATE_MENU;
+
+    // 死亡图片相关
+    SDL_Texture* deathImage = nullptr;
+    Uint32 deathStartTime = 0;
+    const Uint32 DEATH_DISPLAY_TIME = 2000; // 2秒
 
     void handleEvents();
     void update(float deltaTime);
     void render();
-    void runMenuState();      // 菜单状态逻辑
-    void runPlayingState();   // 游戏进行状态逻辑
-    void startNewGame();      // 开始新游戏
+    void runMenuState();
+    void runPlayingState();
+    void runDeathAnimationState();
+    void startNewGame();
+    void handlePlayerDeath();
+    bool loadDeathImage(); // 加载死亡图片
+    void cleanupDeathImage(); // 清理死亡图片资源
 };

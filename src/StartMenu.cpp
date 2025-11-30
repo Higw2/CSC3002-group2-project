@@ -27,14 +27,13 @@ bool StartMenu::init() {
         return false;
     }
 
-    // 创建菜单项
+    // 创建菜单项 - 移除"设置"选项
     int startY = 125;
     int itemSpacing = 60;
     
     createMenuItem("开始游戏", startY);
     createMenuItem("继续游戏", startY + itemSpacing);
-    createMenuItem("设置", startY + itemSpacing * 2);
-    createMenuItem("退出游戏", startY + itemSpacing * 3);
+    createMenuItem("退出游戏", startY + itemSpacing * 2);  // 调整间距
 
     // 设置初始选择
     if (!menuItems.empty()) {
@@ -203,7 +202,14 @@ int StartMenu::run() {
     }
     
     std::cout << "菜单选择: " << currentSelection << std::endl;
-    return currentSelection;
+    
+    // 由于移除了设置选项，需要调整返回值映射
+    switch(currentSelection) {
+        case 0: return 0; // 开始游戏
+        case 1: return 1; // 继续游戏  
+        case 2: return 2; // 退出游戏 (原来是设置)
+        default: return 0;
+    }
 }
 
 void StartMenu::cleanup() {
