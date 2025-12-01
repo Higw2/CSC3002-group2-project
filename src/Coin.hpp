@@ -1,0 +1,23 @@
+#pragma once
+#include <SDL2/SDL.h>
+#include <vector>
+
+class Camera;   // 前向声明
+
+struct Coin {
+    SDL_Rect rect;
+    bool alive = true;
+};
+
+class CoinManager {
+public:
+    bool load(SDL_Renderer* renderer, const char* path);
+    void spawnFixed(const std::vector<SDL_FPoint>& pts, int size);
+    void updateOnPlayerCollision(const SDL_Rect& playerRect, int& score);
+    // 统一：带相机与缩放
+    void render(SDL_Renderer* renderer, const Camera& cam, float renderScale) const;
+    void clear();
+private:
+    std::vector<Coin> coins_;
+    SDL_Texture* coinTex_ = nullptr;
+};
