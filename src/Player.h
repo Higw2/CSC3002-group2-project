@@ -13,6 +13,17 @@ public:
     void render(SDL_Renderer* renderer, const Camera& camera, float renderScale = 1.0f);
     glm::vec2 getPosition() const { return position; }
     void setPosition(const glm::vec2& pos) { position = pos; }
+ 
+    //把玩家的世界坐标包围盒给金币系统做相交判断
+    SDL_Rect getWorldRect() const {
+        return SDL_Rect{
+            static_cast<int>(position.x + hitbox.x),
+            static_cast<int>(position.y + hitbox.y),
+            hitbox.w, hitbox.h
+        };
+    }
+
+
     
     // 死亡判定相关方法
     bool isDead() const { return dead; }

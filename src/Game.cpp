@@ -110,6 +110,10 @@ void Game::update(float deltaTime) {
 
     player->handleInput();
     player->update(*map, deltaTime);
+
+    // 碰到金币则加分并让金币消失
+    coins.updateOnPlayerCollision(player->getWorldRect(), score);
+    camera->follow(player->getPosition(), map->getRenderScale());
     
     if (player->isDead()) {
         std::cout << "!!! 在update中检测到玩家死亡 !!!" << std::endl;
@@ -127,6 +131,7 @@ void Game::render() {
     if (gameState == STATE_PLAYING) {
         map->renderBackground(renderer, *camera);
         map->renderTiles(renderer, *camera);
+        coins.render(renderer, *camera, map->getRenderScale());
         player->render(renderer, *camera, map->getRenderScale());
     }
 
@@ -383,6 +388,17 @@ void Game::startNewGame() {
     float startX = 100.0f;
     float startY = 100.0f;
     player->setPosition({startX, startY});
+
+    // 加载金币贴图
+    if (!coins.load(renderer, "assets/coin.png")) {
+        SDL_Log("Failed to load assets/coin.png");
+    }
+
+    // 用固定坐标生成
+    coins.spawnFixed({
+        {200.f,140.f}, {360.f,220.f}, {520.f,340.f}
+    }, 16); // 金币尺寸
+
 
     std::cout << "玩家初始位置: (" << startX << ", " << startY << ")" << std::endl;
 

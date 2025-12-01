@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "Camera.h"
 #include "StartMenu.h"
+#include "Coin.hpp"
 
 class Game {
 public:
@@ -44,6 +45,10 @@ private:
     SDL_Texture* deathImage = nullptr;
     Uint32 deathStartTime = 0;
     const Uint32 DEATH_DISPLAY_TIME = 2000; // 2秒
+
+    //金币系统部分
+    CoinManager coins;       // 新增成员
+    int score = 0;           // 简单计分
 
     void handleEvents();
     void update(float deltaTime);
