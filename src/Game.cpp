@@ -123,6 +123,12 @@ void Game::update(float deltaTime) {
     
     glm::vec2 playerPos = player->getPosition();
     camera->follow(playerPos, map->getRenderScale());
+
+    // ===== 示例：一行启用/禁用 Y 轴中心锁定 =====
+    // 这里作为演示我们强制开启测试开关，将相机中心 Y 锁定为 100。
+    bool TEST_FORCE_LOCK = true; // 设为 true 则锁定，false 则解除锁定
+    camera->setLockedCenterY(700.0f, TEST_FORCE_LOCK);
+    // ============================================
 }
 
 void Game::render() {

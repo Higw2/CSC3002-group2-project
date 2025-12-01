@@ -24,7 +24,9 @@ public:
 
         // 计算相机目标位置（玩家居中）
         float targetX = playerCenter.x - screenWidth / 2.0f;
-        float targetY = playerCenter.y - screenHeight / 2.0f;
+        // 支持 Y 轴中心锁定：如果被锁定，使用 lockedCenterY 作为中心，否则使用玩家中心
+        float centerY = yLocked ? lockedCenterY : playerCenter.y;
+        float targetY = centerY - screenHeight / 2.0f;
 
         // 严格限制相机边界
         float minX = 0.0f;
@@ -50,6 +52,26 @@ public:
         }
     }
 
+    // 锁定相机 Y 轴的中心位置（传入世界坐标系下的中心 Y）
+    void lockCenterY(float centerY) {
+        yLocked = true;
+        lockedCenterY = centerY;
+    }
+
+    // 解除 Y 轴锁定
+    void unlockY() {
+        yLocked = false;
+    }
+
+    // 查询是否锁定
+    bool isYLocked() const { return yLocked; }
+
+    // 一次性设置锁定中心并启用/禁用
+    void setLockedCenterY(float centerY, bool enable) {
+        if (enable) lockCenterY(centerY);
+        else unlockY();
+    }
+
     SDL_Rect getView() const {
         return { (int)x, (int)y, screenWidth, screenHeight };
     }
@@ -60,4 +82,6 @@ public:
     const int screenHeight;   // 屏幕高度
     const int mapPixelWidth;  // 地图像素宽度
     const int mapPixelHeight; // 地图像素高度
+    bool yLocked = false;     // 是否锁定 Y 轴中心
+    float lockedCenterY = 0.0f; // 被锁定时使用的中心 Y（世界像素坐标）
 };
