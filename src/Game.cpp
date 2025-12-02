@@ -130,6 +130,12 @@ void Game::update(float deltaTime) {
     bool TEST_FORCE_LOCK = true; // 设为 true 则锁定，false 则解除锁定
     camera->setLockedCenterY(512.0f, TEST_FORCE_LOCK);
     }
+    /*
+       if(playerPos.x >= 4600.0f)//终点处x是4600，可以直接检测y游戏结束
+    {
+
+    }
+    */
 }
 
 void Game::render() {
