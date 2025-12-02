@@ -1,7 +1,7 @@
 #include "Game.h"
 #include <iostream>
 
-Game::Game() : deathImage(nullptr) {}
+Game::Game() : deathImage(nullptr), winImage(nullptr) {}
 
 Game::~Game() {
     delete map;
@@ -9,6 +9,7 @@ Game::~Game() {
     delete camera;
     delete startMenu;
     cleanupDeathImage();
+    cleanupWinImage();  // 新增
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
@@ -26,10 +27,30 @@ bool Game::loadDeathImage() {
     return true;
 }
 
+// 新增：加载通关图片
+bool Game::loadWinImage() {
+    winImage = IMG_LoadTexture(renderer, "assets/animations/you_win.png");
+    if (!winImage) {
+        std::cerr << "无法加载通关图片: " << IMG_GetError() << std::endl;
+        std::cerr << "请确保文件存在: assets/animations/you_win.png" << std::endl;
+        return false;
+    }
+    std::cout << "通关图片加载成功" << std::endl;
+    return true;
+}
+
 void Game::cleanupDeathImage() {
     if (deathImage) {
         SDL_DestroyTexture(deathImage);
         deathImage = nullptr;
+    }
+}
+
+// 新增：清理通关图片
+void Game::cleanupWinImage() {
+    if (winImage) {
+        SDL_DestroyTexture(winImage);
+        winImage = nullptr;
     }
 }
 
@@ -78,6 +99,10 @@ bool Game::init() {
         std::cerr << "死亡图片加载失败，将使用默认效果" << std::endl;
     }
 
+    if (!loadWinImage()) {  // 新增：加载通关图片
+        std::cerr << "通关图片加载失败，将使用默认效果" << std::endl;
+    }
+
     gameState = STATE_MENU;
     lastUpdateTime = SDL_GetTicks();
     std::cout << "时间系统初始化完成. LastUpdateTime: " << lastUpdateTime << std::endl;
@@ -124,18 +149,19 @@ void Game::update(float deltaTime) {
     glm::vec2 playerPos = player->getPosition();
     camera->follow(playerPos, map->getRenderScale());
 
-      //相机y轴锁定 100是上面的高度，512是下面的高度，480检测点比较流畅
+    //相机y轴锁定 100是上面的高度，512是下面的高度，480检测点比较流畅
     if (playerPos.y >= 480.0f)
     {
     bool TEST_FORCE_LOCK = true; // 设为 true 则锁定，false 则解除锁定
     camera->setLockedCenterY(512.0f, TEST_FORCE_LOCK);
     }
-    /*
-       if(playerPos.x >= 4600.0f)//终点处x是4600，可以直接检测y游戏结束
-    {
-
+    
+    // 新增：检测是否到达终点（x >= 4600）
+    if (playerPos.x >= 4600.0f) {
+        std::cout << "!!! 玩家到达终点 !!! 位置: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
+        handlePlayerWin();
+        return;
     }
-    */
 }
 
 void Game::render() {
@@ -192,6 +218,9 @@ void Game::run() {
                 break;
             case STATE_DEATH_ANIMATION:
                 runDeathAnimationState();
+                break;
+            case STATE_WIN_ANIMATION:  // 新增：通关动画状态
+                runWinAnimationState();
                 break;
         }
     }
@@ -348,6 +377,106 @@ void Game::runDeathAnimationState() {
     SDL_Delay(16);
 }
 
+// 新增：通关动画状态处理
+void Game::runWinAnimationState() {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_QUIT) {
+            isRunning = false;
+            return;
+        } else if (e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN) {
+            std::cout << "用户跳过通关动画" << std::endl;
+            gameState = STATE_MENU;
+            std::cout << "最终得分: " << score << std::endl;
+            return;
+        }
+    }
+
+    Uint32 currentTime = SDL_GetTicks();
+    Uint32 elapsed = currentTime - winStartTime;
+    
+    static int debugCount = 0;
+    if (debugCount++ % 60 == 0) {
+        std::cout << "通关动画进度: " << elapsed << "/" << WIN_DISPLAY_TIME << " ms" << std::endl;
+    }
+
+    if (elapsed >= WIN_DISPLAY_TIME) {
+        std::cout << "通关动画播放完毕，返回菜单" << std::endl;
+        std::cout << "最终得分: " << score << std::endl;
+        gameState = STATE_MENU;
+        return;
+    }
+
+    SDL_RenderClear(renderer);
+    
+    if (winImage) {
+        int imgWidth, imgHeight;
+        SDL_QueryTexture(winImage, nullptr, nullptr, &imgWidth, &imgHeight);
+        
+        std::cout << "通关图片尺寸: " << imgWidth << "x" << imgHeight << std::endl;
+        std::cout << "屏幕尺寸: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
+        
+        SDL_Rect destRect;
+        
+        // 如果图片比屏幕大，进行缩放
+        if (imgWidth > SCREEN_WIDTH || imgHeight > SCREEN_HEIGHT) {
+            // 计算缩放比例，保持宽高比
+            float scaleX = (float)SCREEN_WIDTH / imgWidth;
+            float scaleY = (float)SCREEN_HEIGHT / imgHeight;
+            float scale = std::min(scaleX, scaleY) * 0.8f; // 稍微缩小一点，留出边距
+            
+            int scaledWidth = (int)(imgWidth * scale);
+            int scaledHeight = (int)(imgHeight * scale);
+            
+            destRect = {
+                (SCREEN_WIDTH - scaledWidth) / 2,
+                (SCREEN_HEIGHT - scaledHeight) / 2,
+                scaledWidth,
+                scaledHeight
+            };
+            
+            std::cout << "通关图片需要缩放，缩放比例: " << scale << std::endl;
+            std::cout << "缩放后尺寸: " << scaledWidth << "x" << scaledHeight << std::endl;
+        } else {
+            // 图片比屏幕小，直接居中显示
+            destRect = {
+                (SCREEN_WIDTH - imgWidth) / 2,
+                (SCREEN_HEIGHT - imgHeight) / 2,
+                imgWidth,
+                imgHeight
+            };
+            
+            std::cout << "通关图片直接居中显示" << std::endl;
+        }
+        
+        SDL_RenderCopy(renderer, winImage, nullptr, &destRect);
+        
+        // 可选：显示得分信息
+        if (elapsed > 1000) { // 1秒后显示得分
+            // 这里可以添加文字渲染代码显示得分
+            // 暂时用控制台输出代替
+        }
+    } else {
+        // 备用：绿色背景（代表成功）
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_Rect screenRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+        SDL_RenderFillRect(renderer, &screenRect);
+    }
+    
+    SDL_RenderPresent(renderer);
+    SDL_Delay(16);
+}
+
+// 新增：处理玩家通关
+void Game::handlePlayerWin() {
+    std::cout << "=== 玩家通关！恭喜！ ===" << std::endl;
+    std::cout << "最终得分: " << score << std::endl;
+    
+    winStartTime = SDL_GetTicks();
+    gameState = STATE_WIN_ANIMATION;
+    std::cout << "游戏状态已切换到: STATE_WIN_ANIMATION" << std::endl;
+}
+
 void Game::handlePlayerDeath() {
     std::cout << "=== 处理玩家死亡 ===" << std::endl;
     
@@ -372,6 +501,9 @@ void Game::startNewGame() {
         delete camera;
         camera = nullptr;
     }
+
+    // 重置得分
+    score = 0;
 
     try {
         map = new TiledMap("assets/maps/level1.tmj", renderer);
@@ -419,5 +551,5 @@ void Game::startNewGame() {
     camera->follow(player->getPosition(), 1.0f);
 
     std::cout << "新游戏初始化完成" << std::endl;
-    std::cout << "相机初始位置: (" << camera->x << ", " << camera->y << ")" << std::endl;
+    std::cout << "相机初始位置: ("<< camera->x << ", " << camera->y << ")" << std::endl;
 }

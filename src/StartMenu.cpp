@@ -45,7 +45,7 @@ bool StartMenu::init() {
 
 bool StartMenu::loadBackground() {
     // 尝试加载背景图片，你可以替换为你想要的背景图片路径
-    backgroundTexture = IMG_LoadTexture(renderer, "assets/menu/background.jpg");
+    backgroundTexture = IMG_LoadTexture(renderer, "assets/menu/background.png");
     if (!backgroundTexture) {
             if (!backgroundTexture) {
                 std::cerr << "无法加载背景图片: " << IMG_GetError() << std::endl;

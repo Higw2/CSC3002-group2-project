@@ -20,7 +20,8 @@ public:
         STATE_MENU,
         STATE_PLAYING,
         STATE_PAUSED,
-        STATE_DEATH_ANIMATION
+        STATE_DEATH_ANIMATION,
+        STATE_WIN_ANIMATION  // 新增：通关动画状态
     };
 
 private:
@@ -46,6 +47,11 @@ private:
     Uint32 deathStartTime = 0;
     const Uint32 DEATH_DISPLAY_TIME = 2000; // 2秒
 
+    // 通关图片相关（新增）
+    SDL_Texture* winImage = nullptr;
+    Uint32 winStartTime = 0;
+    const Uint32 WIN_DISPLAY_TIME = 3000; // 3秒（比死亡动画稍长）
+
     //金币系统部分
     CoinManager coins;       // 新增成员
     int score = 0;           // 简单计分
@@ -56,8 +62,12 @@ private:
     void runMenuState();
     void runPlayingState();
     void runDeathAnimationState();
+    void runWinAnimationState();  // 新增：通关动画状态处理
     void startNewGame();
     void handlePlayerDeath();
+    void handlePlayerWin();    // 新增：处理玩家通关
     bool loadDeathImage(); // 加载死亡图片
+    bool loadWinImage();   // 新增：加载通关图片
     void cleanupDeathImage(); // 清理死亡图片资源
+    void cleanupWinImage();   // 新增：清理通关图片资源
 };
