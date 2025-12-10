@@ -1,0 +1,167 @@
+#include "Player.h"
+#include <iostream>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+
+Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
+    texture = IMG_LoadTexture(renderer, "assets/sprites/player.png");
+    if (!texture) {
+        std::cerr << "玩家纹理加载失败，使用默认红色矩形: " << IMG_GetError() << std::endl;
+        SDL_Surface* surface = SDL_CreateRGBSurface(0, 16, 24, 32, 0, 0, 0, 0);
+        SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 255, 0, 0));
+        texture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_FreeSurface(surface);
+    }
+
+    hitbox = {2, 4, 12, 18};
+}
+
+Player::~Player() {
+    SDL_DestroyTexture(texture);
+}
+
+void Player::handleInput() {
+    if (dead) return;
+    
+    const Uint8* keys = SDL_GetKeyboardState(nullptr);
+    velocity.x = 0;
+
+    if (keys[SDL_SCANCODE_LEFT])  velocity.x = -speed;
+    if (keys[SDL_SCANCODE_RIGHT]) velocity.x = speed;
+
+    if ((keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_UP]) && onGround) {
+        velocity.y = jumpForce;
+        onGround = false;
+    }
+}
+
+void Player::update(const TiledMap& map, float deltaTime) {
+    if (dead) return;
+    
+    // 应用重力
+    velocity.y += gravity * deltaTime;
+
+    // X方向移动与碰撞
+    float oldX = position.x;
+    position.x += velocity.x * deltaTime;
+    
+    SDL_Point testPoints[4] = {
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
+    };
+    
+    bool collideX = false;
+    for (int i = 0; i < 4; i++) {
+        if (map.isColliding(testPoints[i].x, testPoints[i].y)) {
+            collideX = true;
+            break;
+        }
+    }
+    
+    if (collideX) {
+        position.x = oldX;
+        velocity.x = 0;
+    }
+
+    // Y方向移动与碰撞
+    float oldY = position.y;
+    position.y += velocity.y * deltaTime;
+    
+    SDL_Point testPointsY[4] = {
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
+    };
+    
+    bool collideY = false;
+    bool collideTop = false;
+    bool collideBottom = false;
+    
+    for (int i = 0; i < 4; i++) {
+        if (map.isColliding(testPointsY[i].x, testPointsY[i].y)) {
+            collideY = true;
+            if (i < 2) collideTop = true;
+            else collideBottom = true;
+        }
+    }
+
+    if (collideY) {
+        if (collideBottom && velocity.y > 0) {
+            onGround = true;
+            float worldY = position.y + hitbox.y + hitbox.h;
+            int tileY = (int)(worldY) / map.getTileHeight();
+            position.y = (tileY * map.getTileHeight()) - hitbox.y - hitbox.h;
+            velocity.y = 0;
+        } 
+        else if (collideTop && velocity.y < 0) {
+            position.y = oldY;
+            velocity.y = 0;
+        }
+    } 
+    else 
+    {
+        onGround = false;
+    }
+
+    // 边界检查
+    float contentWidth = map.getContentPixelWidth();
+    float contentHeight = map.getContentPixelHeight();
+    
+    if (position.x < 0) position.x = 0;
+    if (position.x + 16 > contentWidth) {
+        position.x = contentWidth - 16;
+    }
+    if (position.y < 0) position.y = 0;
+    if (position.y + 24 > contentHeight) {
+        position.y = contentHeight - 24;
+        velocity.y = 0;
+        onGround = true;
+    }
+
+    // 检查危险物碰撞
+    checkCollisionsWithHazards(map);
+}
+
+void Player::checkCollisionsWithHazards(const TiledMap& map) {
+    if (dead) return;
+    
+    SDL_Point testPoints[4] = {
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y)},
+        {(int)(position.x + hitbox.x), (int)(position.y + hitbox.y + hitbox.h - 1)},
+        {(int)(position.x + hitbox.x + hitbox.w - 1), (int)(position.y + hitbox.y + hitbox.h - 1)}
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        if (map.isHazard(testPoints[i].x, testPoints[i].y)) {
+            std::cout << "!!! 玩家死亡 !!! 危险物碰撞在点 " << i 
+                      << " (" << testPoints[i].x << ", " << testPoints[i].y << ")" << std::endl;
+            kill();
+            return;
+        }
+    }
+}
+
+void Player::render(SDL_Renderer* renderer, const Camera& camera, float renderScale) {
+    if (dead) {
+        SDL_SetTextureAlphaMod(texture, 128);
+    }
+    
+    const SDL_Rect& view = camera.getView();
+    
+    SDL_Rect dest = {
+        (int)(position.x * renderScale - view.x),
+        (int)(position.y * renderScale - view.y),
+        (int)(16 * renderScale),
+        (int)(24 * renderScale)
+    };
+    
+    SDL_RenderCopy(renderer, texture, nullptr, &dest);
+    
+    if (dead) {
+        SDL_SetTextureAlphaMod(texture, 255);
+    }
+}
