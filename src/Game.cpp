@@ -12,53 +12,16 @@ Game::~Game() {
     delete camera;
     delete startMenu;
     cleanupDeathImage();
-    cleanupWinImage();  // 新增
+    cleanupWinImage();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
+    Mix_Quit();
     SDL_Quit();
 }
 
-bool Game::loadDeathImage() {
-    deathImage = IMG_LoadTexture(renderer, "assets/animations/you_die.png");
-    if (!deathImage) {
-        std::cerr << "无法加载死亡图片: " << IMG_GetError() << std::endl;
-        std::cerr << "请确保文件存在: assets/animations/you_die.png" << std::endl;
-        return false;
-    }
-    std::cout << "死亡图片加载成功" << std::endl;
-    return true;
-}
-
-// 新增：加载通关图片
-bool Game::loadWinImage() {
-    winImage = IMG_LoadTexture(renderer, "assets/animations/you_win.png");
-    if (!winImage) {
-        std::cerr << "无法加载通关图片: " << IMG_GetError() << std::endl;
-        std::cerr << "请确保文件存在: assets/animations/you_win.png" << std::endl;
-        return false;
-    }
-    std::cout << "通关图片加载成功" << std::endl;
-    return true;
-}
-
-void Game::cleanupDeathImage() {
-    if (deathImage) {
-        SDL_DestroyTexture(deathImage);
-        deathImage = nullptr;
-    }
-}
-
-// 新增：清理通关图片
-void Game::cleanupWinImage() {
-    if (winImage) {
-        SDL_DestroyTexture(winImage);
-        winImage = nullptr;
-    }
-}
-
 bool Game::init() {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         std::cerr << "SDL初始化失败: " << SDL_GetError() << std::endl;
         return false;
     }
@@ -93,6 +56,12 @@ bool Game::init() {
         return false;
     }
 
+    if (!audioManager.init()) {
+        std::cerr << "音频系统初始化失败" << std::endl;
+    } else {
+        loadAllSounds();
+    }
+
     startMenu = new StartMenu(renderer);
     if (!startMenu->init()) {
         std::cerr << "开始菜单初始化失败" << std::endl;
@@ -102,7 +71,7 @@ bool Game::init() {
         std::cerr << "死亡图片加载失败，将使用默认效果" << std::endl;
     }
 
-    if (!loadWinImage()) {  // 新增：加载通关图片
+    if (!loadWinImage()) {
         std::cerr << "通关图片加载失败，将使用默认效果" << std::endl;
     }
 
@@ -113,6 +82,94 @@ bool Game::init() {
     initHudFont();
     isRunning = true;
     return true;
+}
+
+void Game::loadAllSounds() {
+    audioManager.loadSound("die", "assets/sounds/die.wav");
+    audioManager.loadSound("win", "assets/sounds/win.wav");
+    audioManager.loadSound("coin", "assets/sounds/coin.wav");
+    audioManager.loadSound("jump", "assets/sounds/jump.wav");
+    audioManager.loadSound("hurt", "assets/sounds/hurt.wav");
+    
+    audioManager.setMasterVolume(80);
+    
+    // 降低背景音乐音量，让音效更突出
+    audioManager.setMusicVolume(50);  // 背景音乐音量设为50（0-128）
+    
+    // 增加jump和hurt音效的音量
+    audioManager.setVolume("jump", 120);  // 增加跳跃音效音量
+    audioManager.setVolume("hurt", 120);  // 增加落地音效音量
+    audioManager.setVolume("coin", 100);  // 金币音效
+    audioManager.setVolume("die", 110);   // 死亡音效
+    audioManager.setVolume("win", 110);   // 胜利音效
+    
+    std::cout << "音效加载完成，jump/hurt音量: 120，背景音乐音量: 50" << std::endl;
+}
+
+void Game::startMenuMusic() {
+    if (!menuMusicStarted) {
+        audioManager.stopMusic();
+        audioManager.playMusic("assets/sounds/begining.wav", -1);
+        menuMusicStarted = true;
+        gameMusicStarted = false;
+        std::cout << "开始播放菜单音乐 (begining.wav)" << std::endl;
+    }
+}
+
+void Game::startGameMusic() {
+    if (!gameMusicStarted) {
+        audioManager.stopMusic();
+        audioManager.playMusic("assets/sounds/main.wav", -1);
+        gameMusicStarted = true;
+        menuMusicStarted = false;
+        std::cout << "开始播放游戏音乐 (main.wav)" << std::endl;
+    }
+}
+
+void Game::stopAllMusic() {
+    audioManager.stopMusic();
+    menuMusicStarted = false;
+    gameMusicStarted = false;
+}
+
+void Game::runMenuState() {
+    if (!menuMusicStarted) {
+        startMenuMusic();
+    }
+    
+    if (startMenu) {
+        startMenu->reset();
+        int choice = startMenu->run();
+        
+        switch (choice) {
+            case 0:
+                std::cout << "开始新游戏" << std::endl;
+                startGameMusic();
+                startNewGame();
+                gameState = STATE_PLAYING;
+                break;
+            case 1:
+                std::cout << "继续游戏" << std::endl;
+                if (map && player && camera) {
+                    startGameMusic();
+                    gameState = STATE_PLAYING;
+                } else {
+                    startGameMusic();
+                    startNewGame();
+                    gameState = STATE_PLAYING;
+                }
+                break;
+            case 2:
+                std::cout << "退出游戏" << std::endl;
+                isRunning = false;
+                break;
+        }
+    } else {
+        std::cout << "菜单不可用，直接开始游戏" << std::endl;
+        startGameMusic();
+        startNewGame();
+        gameState = STATE_PLAYING;
+    }
 }
 
 void Game::handleEvents() {
@@ -126,9 +183,23 @@ void Game::handleEvents() {
                 if (gameState == STATE_PLAYING) {
                     gameState = STATE_MENU;
                     std::cout << "返回开始菜单" << std::endl;
+                    // 添加：停止所有音效，播放菜单音乐
+                    audioManager.stopAll();  // 停止所有音效
+                    startMenuMusic();        // 播放菜单音乐
                 }
             }
         }
+    }
+}
+
+void Game::runPlayingState() {
+    handleEvents();
+    update(deltaTime);
+    render();
+
+    Uint32 frameTime = SDL_GetTicks() - lastUpdateTime;
+    if (frameTime < 16) {
+        SDL_Delay(16 - frameTime);
     }
 }
 
@@ -138,14 +209,26 @@ void Game::update(float deltaTime) {
     }
 
     player->handleInput();
+    
+    // 现在可以使用 lambda 了
+    player->setAudioCallback([this](const std::string& soundName) {
+        audioManager.playSound(soundName);
+        std::cout << "播放音效: " << soundName << std::endl;
+    });
+    
     player->update(*map, deltaTime);
 
-    // 碰到金币则加分并让金币消失
-    coins.updateOnPlayerCollision(player->getWorldRect(), *map, score);
+    bool coinCollected = coins.updateOnPlayerCollision(player->getWorldRect(), *map, score);
+    if (coinCollected) {
+        audioManager.playSound("coin");
+    }
+    
     camera->follow(player->getPosition(), map->getRenderScale());
     
     if (player->isDead()) {
         std::cout << "!!! 在update中检测到玩家死亡 !!!" << std::endl;
+        audioManager.playSound("die");
+        stopAllMusic();
         handlePlayerDeath();
         return;
     }
@@ -153,145 +236,17 @@ void Game::update(float deltaTime) {
     glm::vec2 playerPos = player->getPosition();
     camera->follow(playerPos, map->getRenderScale());
 
-    //相机y轴锁定 100是上面的高度，512是下面的高度，480检测点比较流畅
-    if (playerPos.y >= 480.0f)
-    {
-    bool TEST_FORCE_LOCK = true; // 设为 true 则锁定，false 则解除锁定
-    camera->setLockedCenterY(512.0f, TEST_FORCE_LOCK);
+    if (playerPos.y >= 480.0f) {
+        bool TEST_FORCE_LOCK = true;
+        camera->setLockedCenterY(512.0f, TEST_FORCE_LOCK);
     }
     
-    // 新增：检测是否到达终点（x >= 4600）
     if (playerPos.x >= 4600.0f) {
         std::cout << "!!! 玩家到达终点 !!! 位置: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
+        audioManager.playSound("win");
+        stopAllMusic();
         handlePlayerWin();
         return;
-    }
-}
-
-void Game::render() {
-    SDL_RenderClear(renderer);
-
-    if (gameState == STATE_PLAYING) {
-        map->renderBackground(renderer, *camera);
-        map->renderTiles(renderer, *camera);
-        coins.render(renderer, *camera, map->getRenderScale());
-        player->render(renderer, *camera, map->getRenderScale());
-        renderHud();
-    }
-
-    SDL_RenderPresent(renderer);
-}
-
-void Game::run() {
-    if (!init()) {
-        std::cerr << "初始化失败，程序终止" << std::endl;
-        return;
-    }
-
-    std::cout << "游戏初始化成功，开始主循环..." << std::endl;
-
-    while (isRunning) {
-        Uint32 currentTime = SDL_GetTicks();
-        deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
-        lastUpdateTime = currentTime;
-
-        if (deltaTime > MAX_DELTA_TIME) {
-            std::cout << "帧时间过长: " << deltaTime * 1000 << "ms, 限制到" 
-                      << MAX_DELTA_TIME * 1000 << "ms" << std::endl;
-            deltaTime = MAX_DELTA_TIME;
-        }
-
-        static Uint32 frameCount = 0;
-        static Uint32 lastFpsTime = 0;
-        frameCount++;
-        if (currentTime - lastFpsTime >= 1000) {
-            float fps = frameCount / ((currentTime - lastFpsTime) / 1000.0f);
-            std::cout << "FPS: " << fps << ", DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
-            frameCount = 0;
-            lastFpsTime = currentTime;
-        }
-
-        switch (gameState) {
-            case STATE_MENU:
-                runMenuState();
-                break;
-            case STATE_PLAYING:
-                runPlayingState();
-                break;
-            case STATE_PAUSED:
-                runPlayingState();
-                break;
-            case STATE_DEATH_ANIMATION:
-                runDeathAnimationState();
-                break;
-            case STATE_WIN_ANIMATION:  // 新增：通关动画状态
-                runWinAnimationState();
-                break;
-        }
-    }
-}
-
-void Game::runMenuState() {
-    if (startMenu) {
-        startMenu->reset();
-        int choice = startMenu->run();
-        
-        switch (choice) {
-            case 0:
-                std::cout << "开始新游戏" << std::endl;
-                startNewGame();
-                gameState = STATE_PLAYING;
-                break;
-            case 1:
-                std::cout << "继续游戏" << std::endl;
-                if (map && player && camera) {
-                    gameState = STATE_PLAYING;
-                } else {
-                    startNewGame();
-                    gameState = STATE_PLAYING;
-                }
-                break;
-            case 2:
-                std::cout << "退出游戏" << std::endl;
-                isRunning = false;
-                break;
-        }
-    } else {
-        std::cout << "菜单不可用，直接开始游戏" << std::endl;
-        startNewGame();
-        gameState = STATE_PLAYING;
-    }
-}
-
-void Game::runPlayingState() {
-    handleEvents();
-    update(deltaTime);
-    
-    // 临时调试：检查坐标系统
-    static int coordDebugCount = 0;
-    if (coordDebugCount++ % 120 == 0 && player && camera) {
-        glm::vec2 playerPos = player->getPosition();
-        const SDL_Rect& view = camera->getView();
-        
-        std::cout << "=== 坐标系统检查 ===" << std::endl;
-        std::cout << "玩家世界坐标: (" << playerPos.x << ", " << playerPos.y << ")" << std::endl;
-        std::cout << "相机位置: (" << view.x << ", " << view.y << ")" << std::endl;
-        std::cout << "地图缩放: " << map->getRenderScale() << std::endl;
-        
-        // 计算玩家应该在屏幕上的位置
-        float screenX = playerPos.x * map->getRenderScale() - view.x;
-        float screenY = playerPos.y * map->getRenderScale() - view.y;
-        std::cout << "玩家屏幕位置计算: (" << screenX << ", " << screenY << ")" << std::endl;
-        std::cout << "是否在屏幕内: " 
-                  << (screenX >= 0 && screenX <= SCREEN_WIDTH && screenY >= 0 && screenY <= SCREEN_HEIGHT ? "是" : "否") 
-                  << std::endl;
-    }
-    
-    render();
-
-    Uint32 frameTime = SDL_GetTicks() - lastUpdateTime;
-    if (frameTime < 16) {
-        SDL_Delay(16 - frameTime);
     }
 }
 
@@ -307,6 +262,9 @@ void Game::runDeathAnimationState() {
             if (player) {
                 player->respawn();
             }
+            // 修改：停止所有音效，然后播放菜单音乐
+            audioManager.stopAll();  // 停止所有音效（包括die.wav）
+            startMenuMusic();        // 开始播放菜单音乐
             return;
         }
     }
@@ -325,6 +283,9 @@ void Game::runDeathAnimationState() {
         if (player) {
             player->respawn();
         }
+        // 修改：停止所有音效，然后播放菜单音乐
+        audioManager.stopAll();  // 停止所有音效（包括die.wav）
+        startMenuMusic();        // 开始播放菜单音乐
         return;
     }
 
@@ -334,17 +295,12 @@ void Game::runDeathAnimationState() {
         int imgWidth, imgHeight;
         SDL_QueryTexture(deathImage, nullptr, nullptr, &imgWidth, &imgHeight);
         
-        std::cout << "死亡图片尺寸: " << imgWidth << "x" << imgHeight << std::endl;
-        std::cout << "屏幕尺寸: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
-        
         SDL_Rect destRect;
         
-        // 如果图片比屏幕大，进行缩放
         if (imgWidth > SCREEN_WIDTH || imgHeight > SCREEN_HEIGHT) {
-            // 计算缩放比例，保持宽高比
             float scaleX = (float)SCREEN_WIDTH / imgWidth;
             float scaleY = (float)SCREEN_HEIGHT / imgHeight;
-            float scale = std::min(scaleX, scaleY) * 0.8f; // 稍微缩小一点，留出边距
+            float scale = std::min(scaleX, scaleY) * 0.8f;
             
             int scaledWidth = (int)(imgWidth * scale);
             int scaledHeight = (int)(imgHeight * scale);
@@ -355,24 +311,17 @@ void Game::runDeathAnimationState() {
                 scaledWidth,
                 scaledHeight
             };
-            
-            std::cout << "图片需要缩放，缩放比例: " << scale << std::endl;
-            std::cout << "缩放后尺寸: " << scaledWidth << "x" << scaledHeight << std::endl;
         } else {
-            // 图片比屏幕小，直接居中显示
             destRect = {
                 (SCREEN_WIDTH - imgWidth) / 2,
                 (SCREEN_HEIGHT - imgHeight) / 2,
                 imgWidth,
                 imgHeight
             };
-            
-            std::cout << "图片直接居中显示" << std::endl;
         }
         
         SDL_RenderCopy(renderer, deathImage, nullptr, &destRect);
     } else {
-        // 备用：红色背景
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_Rect screenRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(renderer, &screenRect);
@@ -382,7 +331,6 @@ void Game::runDeathAnimationState() {
     SDL_Delay(16);
 }
 
-// 新增：通关动画状态处理
 void Game::runWinAnimationState() {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
@@ -393,6 +341,9 @@ void Game::runWinAnimationState() {
             std::cout << "用户跳过通关动画" << std::endl;
             gameState = STATE_MENU;
             std::cout << "最终得分: " << score << std::endl;
+            // 修改：停止所有音效，然后播放菜单音乐
+            audioManager.stopAll();  // 停止所有音效（包括win.wav）
+            startMenuMusic();        // 开始播放菜单音乐
             return;
         }
     }
@@ -409,8 +360,12 @@ void Game::runWinAnimationState() {
         std::cout << "通关动画播放完毕，返回菜单" << std::endl;
         std::cout << "最终得分: " << score << std::endl;
         gameState = STATE_MENU;
+        // 修改：停止所有音效，然后播放菜单音乐
+        audioManager.stopAll();  // 停止所有音效（包括win.wav）
+        startMenuMusic();        // 开始播放菜单音乐
         return;
     }
+
 
     SDL_RenderClear(renderer);
     
@@ -418,17 +373,12 @@ void Game::runWinAnimationState() {
         int imgWidth, imgHeight;
         SDL_QueryTexture(winImage, nullptr, nullptr, &imgWidth, &imgHeight);
         
-        std::cout << "通关图片尺寸: " << imgWidth << "x" << imgHeight << std::endl;
-        std::cout << "屏幕尺寸: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
-        
         SDL_Rect destRect;
         
-        // 如果图片比屏幕大，进行缩放
         if (imgWidth > SCREEN_WIDTH || imgHeight > SCREEN_HEIGHT) {
-            // 计算缩放比例，保持宽高比
             float scaleX = (float)SCREEN_WIDTH / imgWidth;
             float scaleY = (float)SCREEN_HEIGHT / imgHeight;
-            float scale = std::min(scaleX, scaleY) * 0.8f; // 稍微缩小一点，留出边距
+            float scale = std::min(scaleX, scaleY) * 0.8f;
             
             int scaledWidth = (int)(imgWidth * scale);
             int scaledHeight = (int)(imgHeight * scale);
@@ -439,30 +389,17 @@ void Game::runWinAnimationState() {
                 scaledWidth,
                 scaledHeight
             };
-            
-            std::cout << "通关图片需要缩放，缩放比例: " << scale << std::endl;
-            std::cout << "缩放后尺寸: " << scaledWidth << "x" << scaledHeight << std::endl;
         } else {
-            // 图片比屏幕小，直接居中显示
             destRect = {
                 (SCREEN_WIDTH - imgWidth) / 2,
                 (SCREEN_HEIGHT - imgHeight) / 2,
                 imgWidth,
                 imgHeight
             };
-            
-            std::cout << "通关图片直接居中显示" << std::endl;
         }
         
         SDL_RenderCopy(renderer, winImage, nullptr, &destRect);
-        
-        // 可选：显示得分信息
-        if (elapsed > 1000) { // 1秒后显示得分
-            // 这里可以添加文字渲染代码显示得分
-            // 暂时用控制台输出代替
-        }
     } else {
-        // 备用：绿色背景（代表成功）
         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
         SDL_Rect screenRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
         SDL_RenderFillRect(renderer, &screenRect);
@@ -472,7 +409,6 @@ void Game::runWinAnimationState() {
     SDL_Delay(16);
 }
 
-// 新增：处理玩家通关
 void Game::handlePlayerWin() {
     std::cout << "=== 玩家通关！恭喜！ ===" << std::endl;
     std::cout << "最终得分: " << score << std::endl;
@@ -511,7 +447,7 @@ void Game::updateScoreTexture() {
     }
 
     std::string text = "Coins: " + std::to_string(score);
-    SDL_Color color{255, 215, 0, 255}; // 金色
+    SDL_Color color{255, 215, 0, 255};
     SDL_Surface* surface = TTF_RenderUTF8_Blended(hudFont, text.c_str(), color);
     if (!surface) {
         std::cerr << "HUD 文本表面创建失败: " << TTF_GetError() << std::endl;
@@ -573,7 +509,6 @@ void Game::startNewGame() {
         camera = nullptr;
     }
 
-    // 重置得分
     score = 0;
     lastScoreRendered = -1;
     cleanupHudText();
@@ -585,7 +520,6 @@ void Game::startNewGame() {
         return;
     }
 
-    // 关键修复：设置地图缩放为1.0f，简化坐标计算
     map->setRenderScale(1.0f);
 
     std::cout << "========= 地图详细信息 ==========" << std::endl;
@@ -595,34 +529,127 @@ void Game::startNewGame() {
     std::cout << "屏幕尺寸: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
     std::cout << "=========================================================" << std::endl;
 
-    // 关键修复：使用原始内容尺寸（因为缩放为1.0f）
     camera = new Camera(SCREEN_WIDTH, SCREEN_HEIGHT, 
                        map->getContentPixelWidth(), 
                        map->getContentPixelHeight());
 
     player = new Player(renderer);
     
-    // 设置玩家在安全位置
     float startX = 100.0f;
     float startY = 100.0f;
     player->setPosition({startX, startY});
 
-    // 加载金币贴图
     if (!coins.load(renderer, "assets/coin.png")) {
         SDL_Log("Failed to load assets/coin.png");
     }
 
-    // 从地图金币图块生成金币（不清除原图层，渲染保持一致）
     std::vector<SDL_FPoint> coinSpawns = map->getCoinPositions();
     std::cout << "[Coins] spawn count: " << coinSpawns.size() << std::endl;
     coins.spawnFixed(coinSpawns, map->getTileWidth());
 
-
     std::cout << "玩家初始位置: (" << startX << ", " << startY << ")" << std::endl;
 
-    // 立即将相机对准玩家初始位置
     camera->follow(player->getPosition(), 1.0f);
 
     std::cout << "新游戏初始化完成" << std::endl;
     std::cout << "相机初始位置: ("<< camera->x << ", " << camera->y << ")" << std::endl;
+}
+
+bool Game::loadDeathImage() {
+    deathImage = IMG_LoadTexture(renderer, "assets/animations/you_die.png");
+    if (!deathImage) {
+        std::cerr << "无法加载死亡图片: " << IMG_GetError() << std::endl;
+        std::cerr << "请确保文件存在: assets/animations/you_die.png" << std::endl;
+        return false;
+    }
+    std::cout << "死亡图片加载成功" << std::endl;
+    return true;
+}
+
+bool Game::loadWinImage() {
+    winImage = IMG_LoadTexture(renderer, "assets/animations/you_win.png");
+    if (!winImage) {
+        std::cerr << "无法加载通关图片: " << IMG_GetError() << std::endl;
+        std::cerr << "请确保文件存在: assets/animations/you_win.png" << std::endl;
+        return false;
+    }
+    std::cout << "通关图片加载成功" << std::endl;
+    return true;
+}
+
+void Game::cleanupDeathImage() {
+    if (deathImage) {
+        SDL_DestroyTexture(deathImage);
+        deathImage = nullptr;
+    }
+}
+
+void Game::cleanupWinImage() {
+    if (winImage) {
+        SDL_DestroyTexture(winImage);
+        winImage = nullptr;
+    }
+}
+
+void Game::render() {
+    SDL_RenderClear(renderer);
+
+    if (gameState == STATE_PLAYING) {
+        map->renderBackground(renderer, *camera);
+        map->renderTiles(renderer, *camera);
+        coins.render(renderer, *camera, map->getRenderScale());
+        player->render(renderer, *camera, map->getRenderScale());
+        renderHud();
+    }
+
+    SDL_RenderPresent(renderer);
+}
+
+void Game::run() {
+    if (!init()) {
+        std::cerr << "初始化失败，程序终止" << std::endl;
+        return;
+    }
+
+    std::cout << "游戏初始化成功，开始主循环..." << std::endl;
+
+    while (isRunning) {
+        Uint32 currentTime = SDL_GetTicks();
+        deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
+        lastUpdateTime = currentTime;
+
+        if (deltaTime > MAX_DELTA_TIME) {
+            std::cout << "帧时间过长: " << deltaTime * 1000 << "ms, 限制到" 
+                      << MAX_DELTA_TIME * 1000 << "ms" << std::endl;
+            deltaTime = MAX_DELTA_TIME;
+        }
+
+        static Uint32 frameCount = 0;
+        static Uint32 lastFpsTime = 0;
+        frameCount++;
+        if (currentTime - lastFpsTime >= 1000) {
+            float fps = frameCount / ((currentTime - lastFpsTime) / 1000.0f);
+            std::cout << "FPS: " << fps << ", DeltaTime: " << deltaTime * 1000 << "ms" << std::endl;
+            frameCount = 0;
+            lastFpsTime = currentTime;
+        }
+
+        switch (gameState) {
+            case STATE_MENU:
+                runMenuState();
+                break;
+            case STATE_PLAYING:
+                runPlayingState();
+                break;
+            case STATE_PAUSED:
+                runPlayingState();
+                break;
+            case STATE_DEATH_ANIMATION:
+                runDeathAnimationState();
+                break;
+            case STATE_WIN_ANIMATION:
+                runWinAnimationState();
+                break;
+        }
+    }
 }

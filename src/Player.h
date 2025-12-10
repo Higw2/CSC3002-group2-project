@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
+#include <functional>  // 添加这行
 #include "TiledMap.h"
 #include "Camera.h"
 
@@ -14,7 +15,6 @@ public:
     glm::vec2 getPosition() const { return position; }
     void setPosition(const glm::vec2& pos) { position = pos; }
  
-    //把玩家的世界坐标包围盒给金币系统做相交判断
     SDL_Rect getWorldRect() const {
         return SDL_Rect{
             static_cast<int>(position.x + hitbox.x),
@@ -23,9 +23,9 @@ public:
         };
     }
 
-
+    // 修改：使用 std::function
+    void setAudioCallback(std::function<void(const std::string&)> callback);
     
-    // 死亡判定相关方法
     bool isDead() const { return dead; }
     void kill() { dead = true; }
     void respawn() { dead = false; }
@@ -37,10 +37,15 @@ private:
     glm::vec2 velocity;
     SDL_Rect hitbox;
     bool onGround = false;
-    bool dead = false;  // 死亡状态
+    bool dead = false;
+    bool wasOnGround = true;
+    bool justLanded = false;  // 新增：刚落地标志
 
-    // 移动参数
     const float speed = 180.0f;
     const float jumpForce = -480.0f;
     const float gravity = 1200.0f;
+
+    // 修改：使用 std::function
+    std::function<void(const std::string&)> audioCallback = nullptr;
+    void playSound(const std::string& soundName);
 };
