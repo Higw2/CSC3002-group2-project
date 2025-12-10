@@ -1,5 +1,6 @@
 #include "Coin.hpp"
-#include "Camera.h"                // 需要访问 camera.x / camera.y
+#include "Camera.h"
+#include "TiledMap.h"
 #include <SDL2/SDL_image.h>
 #include <algorithm>
 #include <cmath>
@@ -24,22 +25,21 @@ void CoinManager::spawnFixed(const std::vector<SDL_FPoint>& pts, int size) {
     }
 }
 
-void CoinManager::updateOnPlayerCollision(const SDL_Rect& playerRect, int& score) {
+void CoinManager::updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score) {
     for (auto& c : coins_) {
         if (c.alive && Intersects(c.rect, playerRect)) {
             c.alive = false;
             ++score;
+            map.clearCoinTileAt(c.rect.x, c.rect.y);
         }
     }
     coins_.erase(std::remove_if(coins_.begin(), coins_.end(),
         [](const Coin& c){ return !c.alive; }), coins_.end());
 }
 
-// 统一的签名：render(renderer, cam, renderScale)
 void CoinManager::render(SDL_Renderer* renderer, const Camera& cam, float renderScale) const {
     if (!coinTex_) return;
 
-    // 直接用公开成员 x/y（你的 Camera 没有 getPosition）
     const int camX = (int)std::lround(cam.x);
     const int camY = (int)std::lround(cam.y);
 

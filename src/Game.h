@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <glm/glm.hpp>
 #include "TiledMap.h"
 #include "Player.h"
@@ -55,6 +56,17 @@ private:
     //金币系统部分
     CoinManager coins;       // 新增成员
     int score = 0;           // 简单计分
+
+    // HUD
+    TTF_Font* hudFont = nullptr;
+    SDL_Texture* scoreTexture = nullptr;
+    int scoreTexW = 0;
+    int scoreTexH = 0;
+    int lastScoreRendered = -1;
+    bool initHudFont();
+    void updateScoreTexture();
+    void renderHud();
+    void cleanupHudText();
 
     void handleEvents();
     void update(float deltaTime);

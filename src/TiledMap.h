@@ -30,6 +30,11 @@ public:
     const std::vector<std::vector<int>>& getBackLayer() const { return backLayer; }
     bool isSolidTile(int tileId) const { return solidTiles.count(tileId) > 0; }
     bool isHazardTile(int tileId) const { return hazardTiles.count(tileId) > 0; }
+    bool isCoinTile(int gid) const {
+        return coinFirstGid >= 0 && gid >= coinFirstGid && gid < coinFirstGid + coinTileCount;
+    }
+    std::vector<SDL_FPoint> getCoinPositions() const;
+    bool clearCoinTileAt(int worldX, int worldY);
 
 private:
     struct ImageLayer {
@@ -65,4 +70,6 @@ private:
     std::vector<ImageLayer> imageLayers;
     std::unordered_map<std::string, SDL_Texture*> tilesetMap;
     std::unordered_map<std::string, int> firstGidMap;
+    int coinFirstGid = -1;
+    int coinTileCount = 0;
 };

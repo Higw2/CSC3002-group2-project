@@ -3,6 +3,7 @@
 #include <vector>
 
 class Camera;   // 前向声明
+class TiledMap;
 
 struct Coin {
     SDL_Rect rect;
@@ -13,7 +14,7 @@ class CoinManager {
 public:
     bool load(SDL_Renderer* renderer, const char* path);
     void spawnFixed(const std::vector<SDL_FPoint>& pts, int size);
-    void updateOnPlayerCollision(const SDL_Rect& playerRect, int& score);
+    void updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score);
     // 统一：带相机与缩放
     void render(SDL_Renderer* renderer, const Camera& cam, float renderScale) const;
     void clear();

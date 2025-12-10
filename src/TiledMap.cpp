@@ -51,6 +51,10 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
             int firstGid = ts["firstgid"].get<int>();
             firstGidMap[name] = firstGid;
             std::cout << "Processing tileset: " << name << " (firstgid: " << firstGid << ")" << std::endl;
+            if (name == "coin") {
+                coinFirstGid = firstGid;
+                coinTileCount = ts.value("tilecount", 0);
+            }
 
             // 3. 加载瓦片集纹理 - 修改：加载所有瓦片集纹理，包括items
             SDL_Texture* tilesetTex = nullptr;
@@ -531,6 +535,56 @@ void TiledMap::renderMainLayer(SDL_Renderer* renderer, const Camera& camera) con
             SDL_RenderCopy(renderer, currentTileset, &srcRect, &dest);
         }
     }
+}
+
+std::vector<SDL_FPoint> TiledMap::getCoinPositions() const {
+    std::vector<SDL_FPoint> coins;
+    if (coinFirstGid < 0 || coinTileCount <= 0) {
+        std::cout << "[Coins] coins tileset not found, skip extraction." << std::endl;
+        return coins;
+    }
+    auto scanLayer = [&](const std::vector<std::vector<int>>& layer) {
+        if (layer.empty()) return;
+        const int h = static_cast<int>(layer.size());
+        const int w = static_cast<int>(layer[0].size());
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int tileId = layer[y][x];
+                if (isCoinTile(tileId)) {
+                    coins.push_back(SDL_FPoint{ static_cast<float>(x * tileWidth), static_cast<float>(y * tileHeight) });
+                }
+            }
+        }
+    };
+    scanLayer(mainLayer);
+    scanLayer(backLayer);
+    std::cout << "[Coins] extracted " << coins.size() << " coins from map." << std::endl;
+    return coins;
+}
+
+bool TiledMap::clearCoinTileAt(int worldX, int worldY) {
+    // 转回原始坐标（考虑 renderScale）
+    float originalX = (float)worldX / renderScale;
+    float originalY = (float)worldY / renderScale;
+    int tileX = static_cast<int>(originalX) / tileWidth;
+    int tileY = static_cast<int>(originalY) / tileHeight;
+
+    auto clearInLayer = [&](std::vector<std::vector<int>>& layer) -> bool {
+        if (layer.empty()) return false;
+        const int h = static_cast<int>(layer.size());
+        const int w = static_cast<int>(layer[0].size());
+        if (tileX < 0 || tileX >= w || tileY < 0 || tileY >= h) return false;
+        int tileId = layer[tileY][tileX];
+        if (isCoinTile(tileId)) {
+            layer[tileY][tileX] = 0;
+            return true;
+        }
+        return false;
+    };
+
+    bool cleared = clearInLayer(mainLayer);
+    cleared = clearInLayer(backLayer) || cleared;
+    return cleared;
 }
 
 // 碰撞检测（基于世界坐标，适配缩放）

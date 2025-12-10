@@ -1,9 +1,12 @@
 #include "Game.h"
 #include <iostream>
+#include <string>
 
 Game::Game() : deathImage(nullptr), winImage(nullptr) {}
 
 Game::~Game() {
+    cleanupHudText();
+    if (hudFont) { TTF_CloseFont(hudFont); hudFont = nullptr; }
     delete map;
     delete player;
     delete camera;
@@ -107,6 +110,7 @@ bool Game::init() {
     lastUpdateTime = SDL_GetTicks();
     std::cout << "时间系统初始化完成. LastUpdateTime: " << lastUpdateTime << std::endl;
 
+    initHudFont();
     isRunning = true;
     return true;
 }
@@ -137,7 +141,7 @@ void Game::update(float deltaTime) {
     player->update(*map, deltaTime);
 
     // 碰到金币则加分并让金币消失
-    coins.updateOnPlayerCollision(player->getWorldRect(), score);
+    coins.updateOnPlayerCollision(player->getWorldRect(), *map, score);
     camera->follow(player->getPosition(), map->getRenderScale());
     
     if (player->isDead()) {
@@ -172,6 +176,7 @@ void Game::render() {
         map->renderTiles(renderer, *camera);
         coins.render(renderer, *camera, map->getRenderScale());
         player->render(renderer, *camera, map->getRenderScale());
+        renderHud();
     }
 
     SDL_RenderPresent(renderer);
@@ -477,6 +482,72 @@ void Game::handlePlayerWin() {
     std::cout << "游戏状态已切换到: STATE_WIN_ANIMATION" << std::endl;
 }
 
+bool Game::initHudFont() {
+    if (hudFont) return true;
+    if (TTF_WasInit() == 0) {
+        if (TTF_Init() == -1) {
+            std::cerr << "HUD 字体初始化失败: " << TTF_GetError() << std::endl;
+            return false;
+        }
+    }
+    hudFont = TTF_OpenFont("assets/fonts/FLyouzichati-Regular-2.ttf", 20);
+    if (!hudFont) {
+        hudFont = TTF_OpenFont("arial.ttf", 20);
+    }
+    if (!hudFont) {
+        std::cerr << "HUD 字体加载失败: " << TTF_GetError() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void Game::updateScoreTexture() {
+    if (!hudFont) return;
+    if (score == lastScoreRendered && scoreTexture) return;
+
+    if (scoreTexture) {
+        SDL_DestroyTexture(scoreTexture);
+        scoreTexture = nullptr;
+    }
+
+    std::string text = "Coins: " + std::to_string(score);
+    SDL_Color color{255, 215, 0, 255}; // 金色
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(hudFont, text.c_str(), color);
+    if (!surface) {
+        std::cerr << "HUD 文本表面创建失败: " << TTF_GetError() << std::endl;
+        return;
+    }
+    scoreTexture = SDL_CreateTextureFromSurface(renderer, surface);
+    scoreTexW = surface->w;
+    scoreTexH = surface->h;
+    SDL_FreeSurface(surface);
+    if (!scoreTexture) {
+        std::cerr << "HUD 文本纹理创建失败: " << SDL_GetError() << std::endl;
+        return;
+    }
+    lastScoreRendered = score;
+}
+
+void Game::renderHud() {
+    if (!hudFont) return;
+    updateScoreTexture();
+    if (!scoreTexture) return;
+    SDL_Rect dest;
+    dest.w = scoreTexW;
+    dest.h = scoreTexH;
+    dest.x = SCREEN_WIDTH - dest.w - 12;
+    if (dest.x < 0) dest.x = 0;
+    dest.y = 8;
+    SDL_RenderCopy(renderer, scoreTexture, nullptr, &dest);
+}
+
+void Game::cleanupHudText() {
+    if (scoreTexture) {
+        SDL_DestroyTexture(scoreTexture);
+        scoreTexture = nullptr;
+    }
+}
+
 void Game::handlePlayerDeath() {
     std::cout << "=== 处理玩家死亡 ===" << std::endl;
     
@@ -504,6 +575,8 @@ void Game::startNewGame() {
 
     // 重置得分
     score = 0;
+    lastScoreRendered = -1;
+    cleanupHudText();
 
     try {
         map = new TiledMap("assets/maps/level1.tmj", renderer);
@@ -539,10 +612,10 @@ void Game::startNewGame() {
         SDL_Log("Failed to load assets/coin.png");
     }
 
-    // 用固定坐标生成
-    coins.spawnFixed({
-        {200.f,140.f}, {360.f,220.f}, {520.f,340.f}
-    }, 16); // 金币尺寸
+    // 从地图金币图块生成金币（不清除原图层，渲染保持一致）
+    std::vector<SDL_FPoint> coinSpawns = map->getCoinPositions();
+    std::cout << "[Coins] spawn count: " << coinSpawns.size() << std::endl;
+    coins.spawnFixed(coinSpawns, map->getTileWidth());
 
 
     std::cout << "玩家初始位置: (" << startX << ", " << startY << ")" << std::endl;
