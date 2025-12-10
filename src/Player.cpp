@@ -14,10 +14,21 @@ Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
     }
 
     hitbox = {2, 4, 12, 18};
+    wasOnGround = true;
 }
 
 Player::~Player() {
     SDL_DestroyTexture(texture);
+}
+
+void Player::setAudioCallback(std::function<void(const std::string&)> callback) {
+    audioCallback = callback;
+}
+
+void Player::playSound(const std::string& soundName) {
+    if (audioCallback) {
+        audioCallback(soundName);
+    }
 }
 
 void Player::handleInput() {
@@ -32,16 +43,19 @@ void Player::handleInput() {
     if ((keys[SDL_SCANCODE_SPACE] || keys[SDL_SCANCODE_UP]) && onGround) {
         velocity.y = jumpForce;
         onGround = false;
+        
+        playSound("jump");
+        std::cout << "=== 玩家跳跃，应该播放jump音效 ===" << std::endl;
     }
 }
 
 void Player::update(const TiledMap& map, float deltaTime) {
     if (dead) return;
     
-    // 应用重力
+    bool wasOnGroundBeforeUpdate = onGround;
+    
     velocity.y += gravity * deltaTime;
 
-    // X方向移动与碰撞
     float oldX = position.x;
     position.x += velocity.x * deltaTime;
     
@@ -65,7 +79,6 @@ void Player::update(const TiledMap& map, float deltaTime) {
         velocity.x = 0;
     }
 
-    // Y方向移动与碰撞
     float oldY = position.y;
     position.y += velocity.y * deltaTime;
     
@@ -106,7 +119,17 @@ void Player::update(const TiledMap& map, float deltaTime) {
         onGround = false;
     }
 
-    // 边界检查
+    if (!wasOnGroundBeforeUpdate && onGround && velocity.y >= 0.1f) {
+        static Uint32 lastHurtTime = 0;
+        Uint32 currentTime = SDL_GetTicks();
+        // 至少间隔 300 毫秒才能再次播放
+        if (currentTime - lastHurtTime > 300) {
+            playSound("hurt");
+            std::cout << "播放落地音效 (落地速度: " << velocity.y << ")" << std::endl;
+            lastHurtTime = currentTime;
+        }
+    }
+
     float contentWidth = map.getContentPixelWidth();
     float contentHeight = map.getContentPixelHeight();
     
@@ -121,7 +144,6 @@ void Player::update(const TiledMap& map, float deltaTime) {
         onGround = true;
     }
 
-    // 检查危险物碰撞
     checkCollisionsWithHazards(map);
 }
 

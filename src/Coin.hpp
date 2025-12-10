@@ -14,8 +14,7 @@ class CoinManager {
 public:
     bool load(SDL_Renderer* renderer, const char* path);
     void spawnFixed(const std::vector<SDL_FPoint>& pts, int size);
-    void updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score);
-    // 统一：带相机与缩放
+    bool updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score); // 修改：返回bool
     void render(SDL_Renderer* renderer, const Camera& cam, float renderScale) const;
     void clear();
 private:

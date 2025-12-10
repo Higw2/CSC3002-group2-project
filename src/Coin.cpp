@@ -25,16 +25,24 @@ void CoinManager::spawnFixed(const std::vector<SDL_FPoint>& pts, int size) {
     }
 }
 
-void CoinManager::updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score) {
+// 修改：返回bool表示是否有金币被收集
+bool CoinManager::updateOnPlayerCollision(const SDL_Rect& playerRect, TiledMap& map, int& score) {
+    bool coinCollected = false;  // 新增：追踪是否有金币被收集
+    
     for (auto& c : coins_) {
         if (c.alive && Intersects(c.rect, playerRect)) {
             c.alive = false;
             ++score;
+            coinCollected = true;  // 标记有金币被收集
             map.clearCoinTileAt(c.rect.x, c.rect.y);
         }
     }
+    
+    // 移除已收集的金币
     coins_.erase(std::remove_if(coins_.begin(), coins_.end(),
         [](const Coin& c){ return !c.alive; }), coins_.end());
+    
+    return coinCollected;  // 返回收集状态
 }
 
 void CoinManager::render(SDL_Renderer* renderer, const Camera& cam, float renderScale) const {
