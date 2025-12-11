@@ -255,17 +255,16 @@ TiledMap::TiledMap(const std::string& mapPath, SDL_Renderer* renderer)
 }
 
 void TiledMap::markTilesAsHazards() {
-    std::cout << "=== 危险瓦片标记 ===" << std::endl;
     std::cout << "总危险瓦片数量: " << hazardTiles.size() << std::endl;
     for (int tileId : hazardTiles) {
-        std::cout << "  - 危险瓦片 ID: " << tileId << std::endl;
+        std::cout << "  危险瓦片 ID: " << tileId << std::endl;
     }
     
     if (hazardTiles.empty()) {
-        std::cout << "警告: 没有找到任何危险瓦片!" << std::endl;
-        std::cout << "请检查 Tiled 地图中是否有瓦片设置了 'Spike' 属性" << std::endl;
+        std::cout << "可能有错，没有找到任何危险瓦片" << std::endl;
+        std::cout << "检查一下 Tiled 地图中是否有瓦片设置了Spike属性！" << std::endl;
     } else {
-        std::cout << "危险系统就绪。带有 'Spike' 属性的瓦片已自动标记为危险物。" << std::endl;
+        std::cout << "Spike属性的瓦片成功标记为危险物" << std::endl;
     }
 }
 
@@ -309,10 +308,10 @@ bool TiledMap::isHazard(int worldX, int worldY) const {
     // 调试输出
     static int hazardDebugCount = 0;
     if (hazardDebugCount++ % 180 == 0 && isHazard) { // 每3秒输出一次危险物检测
-        std::cout << "危险物检测 - 世界坐标: (" << worldX << ", " << worldY 
-                  << ") -> 原始坐标: (" << originalX << ", " << originalY
-                  << ") -> 瓦片坐标: (" << tileX << ", " << tileY 
-                  << ") -> 瓦片ID: " << tileId << std::endl;
+        std::cout << "危险物的世界坐标: (" << worldX << ", " << worldY 
+                  << ") 原始坐标: (" << originalX << ", " << originalY
+                  << ") 瓦片坐标: (" << tileX << ", " << tileY 
+                  << ") 瓦片ID: " << tileId << std::endl;
     }
     
     return isHazard;
