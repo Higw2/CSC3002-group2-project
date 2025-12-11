@@ -7,7 +7,7 @@
 Player::Player(SDL_Renderer* renderer) : position(0, 0), velocity(0, 0) {
     texture = IMG_LoadTexture(renderer, "assets/sprites/player.png");
     if (!texture) {
-        std::cerr << "玩家纹理加载失败，使用红色方块代替: " << IMG_GetError() << std::endl;
+        std::cerr << "玩家纹理加载有问题，先用红色方块代替: " << IMG_GetError() << std::endl;
         SDL_Surface* surface = SDL_CreateRGBSurface(0, 16, 24, 32, 0, 0, 0, 0);
         SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 255, 0, 0));
         texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -51,7 +51,7 @@ void Player::handleInput() {
         velocity.y = jumpForce;
         onGround = false;
         playSound("jump");
-        std::cout << "玩家起跳，播放 jump 音效" << std::endl;
+        std::cout << "玩家起跳，播放jump.wav" << std::endl;
     }
 }
 
@@ -132,7 +132,7 @@ void Player::update(const TiledMap& map, float deltaTime) {
     if (!wasOnGroundBeforeUpdate && onGround && velocity.y >= 0.1f) {
         static Uint32 lastHurtTime = 0;
         Uint32 currentTime = SDL_GetTicks();
-        // 300ms 冷却，避免落地音效过于频繁
+        // 300ms 冷却，避免落地音效一直在响
         if (currentTime - lastHurtTime > 300) {
             playSound("hurt");
             std::cout << "播放落地音效 (速度: " << velocity.y << ")" << std::endl;
@@ -176,7 +176,7 @@ void Player::checkCollisionsWithHazards(const TiledMap& map) {
 
     for (int i = 0; i < 4; i++) {
         if (map.isHazard(testPoints[i].x, testPoints[i].y)) {
-            std::cout << "玩家死亡，危险碰撞点 " << i << " ("
+            std::cout << "玩家死亡，碰上了危险碰撞点 " << i << " ("
                       << testPoints[i].x << ", " << testPoints[i].y << ")" << std::endl;
             kill();
             return;

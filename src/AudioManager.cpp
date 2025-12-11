@@ -28,30 +28,34 @@ void AudioManager::loadSound(const std::string& name, const std::string& filepat
     
     Mix_Chunk* chunk = Mix_LoadWAV(filepath.c_str());
     if (!chunk) {
-        std::cerr << "无法加载音效 " << filepath << ": " << Mix_GetError() << std::endl;
+        std::cerr << "音效加载有问题" << filepath << ": " << Mix_GetError() << std::endl;
         return;
     }
     
     sounds[name] = chunk;
-    std::cout << "加载音效: " << name << " (" << filepath << ")" << std::endl;
+    std::cout << "加载音效：" << name << " (" << filepath << ")" << std::endl;
 }
 
 void AudioManager::playSound(const std::string& name) {
     if (!initialized) return;
-    
+
+
     auto it = sounds.find(name);
-    if (it != sounds.end()) {
+    if (it != sounds.end()) 
+    {
         Mix_PlayChannel(-1, it->second, 0);
     }
 }
 
 void AudioManager::stopSound(const std::string& name) {
-    // 简化处理
+    // 停止指定的影月
+    //估计实现有点耗时间，先定义这个函数空着，先用着别报错
+    //不用这个了，干脆停所有音效stopall（）
 }
 
 void AudioManager::stopAll() {
     if (!initialized) return;
-    Mix_HaltChannel(-1);  // 停止所有音效通道
+    Mix_HaltChannel(-1);  // 停止所有音效
 }
 
 void AudioManager::setVolume(const std::string& name, int volume) {
@@ -61,6 +65,7 @@ void AudioManager::setVolume(const std::string& name, int volume) {
     if (it != sounds.end()) {
         Mix_VolumeChunk(it->second, volume);
     }
+    // 背景音乐太吵了，听不到jump，定义一个函数来调音乐音量
 }
 
 void AudioManager::setMusicVolume(int volume) {
@@ -80,14 +85,13 @@ void AudioManager::playMusic(const std::string& filepath, int loops) {
     
     currentMusic = Mix_LoadMUS(filepath.c_str());
     if (!currentMusic) {
-        std::cerr << "无法加载音乐 " << filepath << ": " << Mix_GetError() << std::endl;
+        std::cerr << "无法加载音乐" << filepath << ": " << Mix_GetError() << std::endl;
         return;
     }
-    
     if (Mix_PlayMusic(currentMusic, loops) == -1) {
-        std::cerr << "播放音乐失败: " << Mix_GetError() << std::endl;
+        std::cerr << "放音乐失败: " << Mix_GetError() << std::endl;
     } else {
-        std::cout << "开始播放音乐: " << filepath << std::endl;
+        std::cout << "开始放音乐: " << filepath << std::endl;
     }
 }
 
@@ -103,7 +107,7 @@ void AudioManager::stopMusic() {
 
 void AudioManager::pauseMusic() {
     if (!initialized) return;
-    Mix_PauseMusic();
+    Mix_PauseMusic(); //暂停背景音乐
 }
 
 void AudioManager::resumeMusic() {
