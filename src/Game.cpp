@@ -390,7 +390,7 @@ void Game::runWinAnimationState() {
 }
 
 void Game::handlePlayerWin() {
-    std::cout << "=== 玩家通关！恭喜！ ===" << std::endl;
+    std::cout << "玩家通关！恭喜" << std::endl;
     std::cout << "最终得分 " << score << std::endl;
 
     winStartTime = SDL_GetTicks();
@@ -404,7 +404,7 @@ bool Game::initHudFont() {
     }
     if (TTF_WasInit() == 0) {
         if (TTF_Init() == -1) {
-            std::cerr << "HUD 字体初始化失败: " << TTF_GetError() << std::endl;
+            std::cerr << "字体初始化失败: " << TTF_GetError() << std::endl;
             return false;
         }
     }
@@ -413,7 +413,7 @@ bool Game::initHudFont() {
         hudFont = TTF_OpenFont("arial.ttf", 20);
     }
     if (!hudFont) {
-        std::cerr << "HUD 字体加载失败: " << TTF_GetError() << std::endl;
+        std::cerr << "字体加载失败: " << TTF_GetError() << std::endl;
         return false;
     }
     return true;
@@ -436,7 +436,7 @@ void Game::updateScoreTexture() {
     SDL_Color color{255, 215, 0, 255};
     SDL_Surface* surface = TTF_RenderUTF8_Blended(hudFont, text.c_str(), color);
     if (!surface) {
-        std::cerr << "HUD 文本表面创建失败: " << TTF_GetError() << std::endl;
+        std::cerr << "HUD文本表面创建失败: " << TTF_GetError() << std::endl;
         return;
     }
     scoreTexture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -444,7 +444,7 @@ void Game::updateScoreTexture() {
     scoreTexH = surface->h;
     SDL_FreeSurface(surface);
     if (!scoreTexture) {
-        std::cerr << "HUD 文本纹理创建失败: " << SDL_GetError() << std::endl;
+        std::cerr << "HUD文本纹理创建失败: " << SDL_GetError() << std::endl;
         return;
     }
     lastScoreRendered = score;
@@ -477,7 +477,7 @@ void Game::cleanupHudText() {
 }
 
 void Game::handlePlayerDeath() {
-    std::cout << "=== 处理玩家死亡 ===" << std::endl;
+    std::cout << "处理玩家死亡" << std::endl;
 
     if (player && player->isDead()) {
         std::cout << "玩家死亡，进入死亡动画" << std::endl;
@@ -514,13 +514,18 @@ void Game::startNewGame() {
 
     map->setRenderScale(1.0f);
 
-    std::cout << "========= 地图信息 =========" << std::endl;
+    
+    std::cout << "==================================== 地图信息 ===========================================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
     std::cout << "原始尺寸: " << map->getMapPixelWidth() << "x" << map->getMapPixelHeight() << std::endl;
-    std::cout << "内容尺寸: " << map->getContentPixelWidth() << "x" << map->getContentPixelHeight()
-              << std::endl;
+    std::cout << "内容尺寸: " << map->getContentPixelWidth() << "x" << map->getContentPixelHeight() << std::endl;
     std::cout << "瓦片尺寸: " << map->getTileWidth() << "x" << map->getTileHeight() << std::endl;
     std::cout << "屏幕尺寸: " << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << std::endl;
-    std::cout << "============================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
+    std::cout << "=====================================================================================" << std::endl;
 
     camera = new Camera(
         SCREEN_WIDTH, SCREEN_HEIGHT, map->getContentPixelWidth(), map->getContentPixelHeight());
@@ -532,7 +537,7 @@ void Game::startNewGame() {
     player->setPosition({startX, startY});
 
     if (!coins.load(renderer, "assets/coin.png")) {
-        SDL_Log("Failed to load assets/coin.png");
+        SDL_Log("加载失败assets/coin.png");
     }
 
     std::vector<SDL_FPoint> coinSpawns = map->getCoinPositions();
@@ -551,7 +556,7 @@ bool Game::loadDeathImage() {
     deathImage = IMG_LoadTexture(renderer, "assets/animations/you_die.png");
     if (!deathImage) {
         std::cerr << "无法加载死亡图片: " << IMG_GetError() << std::endl;
-        std::cerr << "请确认文件存在 assets/animations/you_die.png" << std::endl;
+        std::cerr << "文件你确定再这里吗 assets/animations/you_die.png" << std::endl;
         return false;
     }
     std::cout << "死亡图片加载成功" << std::endl;
@@ -562,7 +567,7 @@ bool Game::loadWinImage() {
     winImage = IMG_LoadTexture(renderer, "assets/animations/you_win.png");
     if (!winImage) {
         std::cerr << "无法加载通关图片: " << IMG_GetError() << std::endl;
-        std::cerr << "请确认文件存在 assets/animations/you_win.png" << std::endl;
+        std::cerr << "把文件放在assets/animations/you_win.png" << std::endl;
         return false;
     }
     std::cout << "通关图片加载成功" << std::endl;
@@ -603,7 +608,7 @@ void Game::run() {
         return;
     }
 
-    std::cout << "游戏初始化成功，开始主循环..." << std::endl;
+    std::cout << "游戏初始化成功，开始主循环" << std::endl;
 
     while (isRunning) {
         Uint32 currentTime = SDL_GetTicks();

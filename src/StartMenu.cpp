@@ -44,7 +44,6 @@ bool StartMenu::loadBackground() {
         std::cerr << "无法加载背景图: " << IMG_GetError() << std::endl;
         return false;
     }
-    std::cout << "背景图加载成功" << std::endl;
     return true;
 }
 
@@ -53,7 +52,7 @@ void StartMenu::loadFont() {
     if (!font) {
         font = TTF_OpenFont("arial.ttf", 32);
         if (!font) {
-            std::cerr << "无法加载字体，使用备选失败" << std::endl;
+            std::cerr << "无法加载字体" << std::endl;
         }
     }
 }

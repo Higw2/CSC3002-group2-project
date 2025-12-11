@@ -2,7 +2,7 @@
 #include <SDL2/SDL.h>
 #include <vector>
 
-class Camera;   // 前向声明
+class Camera;
 class TiledMap;
 
 struct Coin {

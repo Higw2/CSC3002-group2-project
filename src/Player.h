@@ -1,7 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
-#include <functional>  // 添加这行
+#include <functional>
 #include "TiledMap.h"
 #include "Camera.h"
 
@@ -45,7 +45,7 @@ private:
     const float jumpForce = -480.0f;
     const float gravity = 1200.0f;
 
-    // 修改：使用 std::function
+    // 修改：使用 std::function，不然会报错程序没法跑
     std::function<void(const std::string&)> audioCallback = nullptr;
     void playSound(const std::string& soundName);
 };
