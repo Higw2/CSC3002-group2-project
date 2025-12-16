@@ -10,9 +10,9 @@
 - **显卡**: 支持 OpenGL 2.0 或更高
 
 前置要求：
-mingw64 编译器（推荐 15.2.0 版本）
-CMake（3.10 或更高版本）
-Git（版本控制工具）
+mingw64 编译器（推荐 15.2.0 版本）<br>
+CMake（3.10 或更高版本）<br>
+Git（版本控制工具）<br>
 
 如不满足前置需求，请安装必要的开发工具：
 1. [MinGW-w64](https://www.mingw-w64.org/) (选择 x86_64 架构)
@@ -20,43 +20,43 @@ Git（版本控制工具）
 3. [Git](https://git-scm.com/)
 
 项目结构：
-EchoGidge
-├─ assets          # 资源文件夹
-│  ├─ animations   # 动画资源
-│  ├─ fonts        # 字体资源
-│  ├─ maps         # 地图资源
-│  ├─ menu         # 菜单资源
-│  ├─ sounds       # 音效资源
-│  └─ sprites      # 精灵/贴图资源
-├─ src             # 源代码文件夹
-│  ├─ AudioManager.cpp/.h    # 音频管理类
-│  ├─ Camera.h               # 相机类（头文件）
-│  ├─ Coin.cpp/.h            # 金币类
-│  ├─ Game.cpp/.h            # 游戏核心类
-│  ├─ main.cpp               # 程序入口
-│  ├─ Player.cpp/.h          # 玩家类
-│  ├─ StartMenu.cpp/.h       # 开始菜单类
-│  ├─ TiledMap.cpp/.h        # Tiled地图类
-│  └─ VideoPlayer.cpp/.h     # 视频播放类
-└─ third-party     # 第三方依赖库
-   ├─ macos        # macOS平台依赖
-   └─ windows      # Windows平台依赖
-      ├─ glm               # 数学库
-      ├─ nlohmann_json     # JSON解析库
-      ├─ SDL2              # 基础图形/输入库
-      ├─ SDL2_image        # 图片加载库
-      ├─ SDL2_mixer        # 音频混音库
-      └─ SDL2_ttf          # 字体渲染库
-安装步骤：
-1. 克隆仓库：
-   git clone https://github.com/Higw2/CSC3002-group2-project.git
-   cd CSC3002-group2-project
-2. 使用 CMake 构建：
-   mkdir build
-   cd build
-   cmake --build .
-   ./EchoGidge.exe
+EchoGidge<br>
+├─ assets          # 资源文件夹<br>
+│  ├─ animations   # 动画资源<br>
+│  ├─ fonts        # 字体资源<br>
+│  ├─ maps         # 地图资源<br>
+│  ├─ menu         # 菜单资源<br>
+│  ├─ sounds       # 音效资源<br>
+│  └─ sprites      # 精灵/贴图资源<br>
+├─ src             # 源代码文件夹<br>
+│  ├─ AudioManager.cpp/.h    # 音频管理类<br>
+│  ├─ Camera.h               # 相机类（头文件）<br>
+│  ├─ Coin.cpp/.h            # 金币类<br>
+│  ├─ Game.cpp/.h            # 游戏核心类<br>
+│  ├─ main.cpp               # 程序入口<br>
+│  ├─ Player.cpp/.h          # 玩家类<br>
+│  ├─ StartMenu.cpp/.h       # 开始菜单类<br>
+│  ├─ TiledMap.cpp/.h        # Tiled地图类<br>
+│  └─ VideoPlayer.cpp/.h     # 视频播放类<br>
+└─ third-party     # 第三方依赖库<br>
+   ├─ macos        # macOS平台依赖<br>
+   └─ windows      # Windows平台依赖<br>
+      ├─ glm               # 数学库<br>
+      ├─ nlohmann_json     # JSON解析库<br>
+      ├─ SDL2              # 基础图形/输入库<br>
+      ├─ SDL2_image        # 图片加载库<br>
+      ├─ SDL2_mixer        # 音频混音库<br>
+      └─ SDL2_ttf          # 字体渲染库<br>
+安装步骤：<br>
+1. 克隆仓库：<br>
+   git clone https://github.com/Higw2/CSC3002-group2-project.git<br>
+   cd CSC3002-group2-project<br>
+2. 使用 CMake 构建：<br>
+   mkdir build<br>
+   cd build<br>
+   cmake --build .<br>
+   ./EchoGidge.exe<br>
 
-贡献者
-CSC3002 课程第二小组成员
+贡献者<br>
+CSC3002 课程第二小组成员<br>
 ⭐ 如果这个项目对你有帮助，请给个 Star！ ⭐
