@@ -39,14 +39,14 @@ EchoGidge<br>
 │  ├─ TiledMap.cpp/.h        # Tiled地图类<br>
 │  └─ VideoPlayer.cpp/.h     # 视频播放类<br>
 └─ third-party     # 第三方依赖库<br>
-   ├─ macos        # macOS平台依赖<br>
-   └─ windows      # Windows平台依赖<br>
-      ├─ glm               # 数学库<br>
-      ├─ nlohmann_json     # JSON解析库<br>
-      ├─ SDL2              # 基础图形/输入库<br>
-      ├─ SDL2_image        # 图片加载库<br>
-      ├─ SDL2_mixer        # 音频混音库<br>
-      └─ SDL2_ttf          # 字体渲染库<br>
+   &emsp;├─ macos        # macOS平台依赖<br>
+   &emsp;└─ windows      # Windows平台依赖<br>
+      &emsp;&emsp;├─ glm               # 数学库<br>
+      &emsp;&emsp;├─ nlohmann_json     # JSON解析库<br>
+      &emsp;&emsp;├─ SDL2              # 基础图形/输入库<br>
+      &emsp;&emsp;├─ SDL2_image        # 图片加载库<br>
+      &emsp;&emsp;├─ SDL2_mixer        # 音频混音库<br>
+      &emsp;&emsp;└─ SDL2_ttf          # 字体渲染库<br>
 安装步骤：<br>
 1. 克隆仓库：<br>
    git clone https://github.com/Higw2/CSC3002-group2-project.git<br>
